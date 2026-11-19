@@ -58,36 +58,50 @@ public struct AutomationEngine {
         active = stillActive + started
 
         // The newest active rule that sets each field.
-        let byApp = Dictionary(rules.map { ($0.bundleID, $0) }, uniquingKeysWith: { first, _ in first })
+        var byApp: [String: AutomationRule] = [:]
+        for rule in rules where byApp[rule.bundleID] == nil { byApp[rule.bundleID] = rule }
         let newestFirst: [AutomationRule] = active.reversed().compactMap { byApp[$0] }
         var changes = DeviceSettings()
         var cause: String?
 
-        func reconcile<T: Equatable>(_ field: WritableKeyPath<DeviceSettings, T?>) {
-            guard let now = current[keyPath: field] else { return } // wait until the earbuds report it
-            let owner = newestFirst.first { $0.settings[keyPath: field] != nil }
-            if let owner, let target = owner.settings[keyPath: field] {
-                if applied[keyPath: field] == nil { baseline[keyPath: field] = now }
-                if applied[keyPath: field] != target {
-                    applied[keyPath: field] = target
-                    if now != target {
-                        changes[keyPath: field] = target
-                        cause = cause ?? owner.bundleID
-                    }
-                }
-            } else if let last = applied[keyPath: field] {
-                // No rule controls it any more: put it back unless the user changed it.
-                if now == last, let before = baseline[keyPath: field], before != now {
-                    changes[keyPath: field] = before
-                }
-                applied[keyPath: field] = nil
-                baseline[keyPath: field] = nil
-            }
-        }
-        reconcile(\.noiseMode)
-        reconcile(\.eqPreset)
-        reconcile(\.lowLatency)
+        // One setting at a time, without key paths (they depend on the OS's Swift runtime).
+        let noiseOwner: AutomationRule? = newestFirst.first { $0.settings.noiseMode != nil }
+        Self.reconcile(now: current.noiseMode, target: noiseOwner?.settings.noiseMode, owner: noiseOwner?.bundleID,
+                       applied: &applied.noiseMode, baseline: &baseline.noiseMode,
+                       change: &changes.noiseMode, cause: &cause)
+        let eqOwner: AutomationRule? = newestFirst.first { $0.settings.eqPreset != nil }
+        Self.reconcile(now: current.eqPreset, target: eqOwner?.settings.eqPreset, owner: eqOwner?.bundleID,
+                       applied: &applied.eqPreset, baseline: &baseline.eqPreset,
+                       change: &changes.eqPreset, cause: &cause)
+        let latencyOwner: AutomationRule? = newestFirst.first { $0.settings.lowLatency != nil }
+        Self.reconcile(now: current.lowLatency, target: latencyOwner?.settings.lowLatency, owner: latencyOwner?.bundleID,
+                       applied: &applied.lowLatency, baseline: &baseline.lowLatency,
+                       change: &changes.lowLatency, cause: &cause)
         return (changes, cause)
+    }
+
+    /// One setting: take it over for the newest rule that sets it (`target`, from
+    /// app `owner`), or give it back, restoring the old value unless the user
+    /// changed it, when no rule does.
+    private static func reconcile<T: Equatable>(now: T?, target: T?, owner: String?,
+                                                applied: inout T?, baseline: inout T?,
+                                                change: inout T?, cause: inout String?) {
+        guard let now else { return } // wait until the earbuds report it
+        if let target {
+            if applied == nil { baseline = now }
+            guard applied != target else { return }
+            applied = target
+            if now != target {
+                change = target
+                if cause == nil { cause = owner }
+            }
+        } else if let last = applied {
+            if now == last, let before = baseline, before != now {
+                change = before
+            }
+            applied = nil
+            baseline = nil
+        }
     }
 
     /// Forget everything, e.g. when the earbuds disconnect. Rules for apps that

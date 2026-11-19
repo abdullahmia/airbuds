@@ -36,8 +36,12 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Releasing $VERSION"
 
+      - name: Build checks
+        run: swift build -c release --product AirBudsKitChecks
+
       - name: Protocol checks
-        run: swift run -c release AirBudsKitChecks
+        timeout-minutes: 2
+        run: swift run -c release --skip-build AirBudsKitChecks
 
       - name: Build app (universal)
         env:

@@ -4,8 +4,13 @@
 import Foundation
 import AirBudsKit
 
+// Print each line as it happens, so a crash on CI still shows how far the checks got.
+setvbuf(stdout, nil, _IOLBF, 0)
+
 var failures = 0
 var passes = 0
+
+func section(_ name: String) { print("== \(name)") }
 
 func check(_ condition: @autoclosure () -> Bool, _ message: String, line: Int = #line) {
     if condition() {
@@ -27,7 +32,7 @@ func hex(_ s: String) -> [UInt8] {
     return out
 }
 
-// Low battery alerts.
+section("Low battery alerts")
 func report(left: Int?, right: Int? = nil, charging: Bool = false) -> Battery {
     var b = Battery()
     b.left = left.map { BatteryLevel(level: $0, charging: charging) }
@@ -50,7 +55,7 @@ var swapped = LowBatteryTracker()
 _ = swapped.update(report(left: 9))
 check(swapped.update(report(left: 15)).map(\.threshold) == [20], "recovering 5+ points re-arms (15% after 10% alert)")
 
-// Fully charged alerts.
+section("Fully charged alerts")
 func charge(left: Int?, charging: Bool, case caseLevel: Int? = nil, caseCharging: Bool = false) -> Battery {
     var b = Battery()
     b.left = left.map { BatteryLevel(level: $0, charging: charging) }
@@ -60,16 +65,21 @@ func charge(left: Int?, charging: Bool, case caseLevel: Int? = nil, caseCharging
 var full = FullChargeTracker()
 check(full.update(charge(left: 100, charging: true)).isEmpty, "already full on connect: no alert")
 check(full.update(charge(left: 80, charging: true)).isEmpty, "charging below 100%: no alert yet")
-check(full.update(charge(left: 100, charging: true)) == [.left], "alert on reaching 100%")
+let reachedFull: [BatteryPart] = full.update(charge(left: 100, charging: true))
+check(reachedFull == [BatteryPart.left], "alert on reaching 100%")
 check(full.update(charge(left: 100, charging: true)).isEmpty, "no repeat while it stays full")
-check(full.update(charge(left: 90, charging: true)).isEmpty && full.update(charge(left: 100, charging: false)) == [.left],
-      "full counts even when the charging flag clears at 100%")
-check(full.update(charge(left: 90, charging: true)).isEmpty && full.update(charge(left: 92, charging: false)).isEmpty
-      && full.update(charge(left: 100, charging: false)).isEmpty, "charging stopped short of 100% disarms")
-check(full.update(charge(left: nil, charging: false, case: 70, caseCharging: true)).isEmpty
-      && full.update(charge(left: nil, charging: false, case: 100, caseCharging: true)) == [.case], "case alerts too")
+_ = full.update(charge(left: 90, charging: true))
+let flagCleared: [BatteryPart] = full.update(charge(left: 100, charging: false))
+check(flagCleared == [BatteryPart.left], "full counts even when the charging flag clears at 100%")
+_ = full.update(charge(left: 90, charging: true))
+_ = full.update(charge(left: 92, charging: false))
+let disarmed: [BatteryPart] = full.update(charge(left: 100, charging: false))
+check(disarmed.isEmpty, "charging stopped short of 100% disarms")
+_ = full.update(charge(left: nil, charging: false, case: 70, caseCharging: true))
+let caseFull: [BatteryPart] = full.update(charge(left: nil, charging: false, case: 100, caseCharging: true))
+check(caseFull == [BatteryPart.case], "case alerts too")
 
-// Battery history and time left.
+section("Battery history and time left")
 let t0 = Date(timeIntervalSince1970: 1_800_000_000)
 func at(_ minutes: Double) -> Date { t0.addingTimeInterval(minutes * 60) }
 func buds(_ left: Int?, _ right: Int? = nil, charging: Bool = false) -> Battery {
@@ -84,18 +94,25 @@ check(!history.record(buds(100, 100), at: at(1)), "unchanged reading not stored"
 check(history.record(buds(100, 100), at: at(6)), "heartbeat after 5 minutes")
 check(!history.record(Battery(), at: at(7)), "empty reading ignored")
 // Polled every minute; left drains 10% every 20 minutes from minute 10.
+func drainingLeft(at minute: Int) -> Int {
+    if minute < 10 { return 100 }
+    if minute < 30 { return 90 }
+    if minute < 50 { return 80 }
+    return 70
+}
 for minute in 7...50 {
-    let level = minute < 10 ? 100 : minute < 30 ? 90 : minute < 50 ? 80 : 70
-    history.record(buds(level, 100), at: at(Double(minute)))
+    history.record(buds(drainingLeft(at: minute), 100), at: at(Double(minute)))
 }
 check(history.timeRemaining(.right, now: at(51)) == nil, "no estimate without drops")
 let leftLeft = history.timeRemaining(.left, now: at(55))
-check(leftLeft.map { abs($0 - 135 * 60) < 1 } == true, "left: 70% at 10%/20 min, 5 min after the drop -> 135 min")
+let leftMinutes: Double = (leftLeft ?? -1) / 60
+check(abs(leftMinutes - 135) < 0.02, "left: 70% at 10%/20 min, 5 min after the drop -> 135 min")
 check(history.timeRemaining(.left, now: at(64)) != nil, "estimate holds within the session gap")
 var overdueHistory = history
 for minute in 51...90 { overdueHistory.record(buds(70, 100), at: at(Double(minute))) }
 let overdue = overdueHistory.timeRemaining(.left, now: at(90))
-check(overdue.map { $0 > 100 * 60 } == true, "overdue drop: slower rate, so more than the naive 100 min left")
+let overdueMinutes: Double = (overdue ?? 0) / 60
+check(overdueMinutes > 100, "overdue drop: slower rate, so more than the naive 100 min left")
 check(history.timeRemaining(.left, now: at(200)) == nil, "no estimate once the session is over")
 var onePoint = BatteryHistory()
 onePoint.record(buds(100), at: at(0))
@@ -112,14 +129,14 @@ old.record(buds(50), at: at(0))
 old.record(buds(40), at: at(8 * 24 * 60))
 check(old.samples.count == 1, "samples older than a week are dropped")
 
-// Noise mode cycling.
+section("Noise mode cycling")
 check(NoiseMode.next(after: .anc, transparency: true) == .transparency, "nc -> transparency")
 check(NoiseMode.next(after: .transparency, transparency: true) == .off, "transparency -> off")
 check(NoiseMode.next(after: .off, transparency: true) == .anc, "off -> nc")
 check(NoiseMode.next(after: .anc, transparency: false) == .off, "nc -> off without transparency")
 check(NoiseMode.next(after: nil, transparency: true) == .anc, "unknown -> nc")
 
-// airbuds:// commands.
+section("airbuds:// links")
 func command(_ s: String) -> AirBudsCommand? { URL(string: s).flatMap(AirBudsCommand.init(url:)) }
 check(command("airbuds://noise/anc") == .noise(.anc), "url: noise cancellation")
 check(command("AirBuds://Noise/Transparency") == .noise(.transparency), "url: case-insensitive")
@@ -129,13 +146,15 @@ check(command("airbuds://eq/Rock") == .eq("rock"), "url: eq")
 check(command("airbuds://low-latency/on") == .lowLatency(true), "url: low latency on")
 check(command("airbuds://low-latency/toggle") == .lowLatency(nil), "url: low latency toggle")
 check(command("airbuds://open") == .open, "url: open")
-check(command("airbuds://connect") == .connect && command("airbuds://disconnect") == .disconnect, "url: connect, disconnect")
-check(command("airbuds://noise/loud") == nil && command("https://noise/anc") == nil, "url: unknown ignored")
+check(command("airbuds://connect") == AirBudsCommand.connect, "url: connect")
+check(command("airbuds://disconnect") == AirBudsCommand.disconnect, "url: disconnect")
+check(command("airbuds://noise/loud") == nil, "url: unknown command ignored")
+check(command("https://noise/anc") == nil, "url: other schemes ignored")
 check(AirBudsCommand.preset(named: "normal", in: JieliCodec.eqPresets)?.id == 0, "eq by label")
 check(AirBudsCommand.preset(named: "3", in: JieliCodec.eqPresets)?.key == "classical", "eq by number")
 check(AirBudsCommand.preset(named: "dubstep", in: JieliCodec.eqPresets) == nil, "unknown eq")
 
-// Per-app automation.
+section("Per-app automation")
 let zoom = AutomationRule(bundleID: "us.zoom.xos", appName: "zoom.us",
                           settings: DeviceSettings(noiseMode: .transparency))
 let game = AutomationRule(bundleID: "com.game", appName: "Game",
@@ -157,18 +176,20 @@ check(step(["com.apple.finder"]) == DeviceSettings(noiseMode: .anc), "zoom quits
 _ = step(["us.zoom.xos"])
 check(step(["us.zoom.xos", "com.game"]) == DeviceSettings(noiseMode: .anc, lowLatency: true), "newest rule wins")
 check(step(["com.game"]).isEmpty, "zoom quits under the game: game still owns the settings")
-check(step([]) == DeviceSettings(lowLatency: false) && buds == DeviceSettings(noiseMode: .anc, eqPreset: 1, lowLatency: false),
-      "game quits: back to the original settings")
+let restored: DeviceSettings = step([])
+check(restored == DeviceSettings(lowLatency: false), "game quits: low latency goes back off")
+check(buds == DeviceSettings(noiseMode: .anc, eqPreset: 1, lowLatency: false), "game quits: back to the original settings")
 _ = step(["us.zoom.xos"])
 buds.noiseMode = .off // user picks Off during the call
 check(step([]).isEmpty, "manual change during a rule is kept")
 var waiting = AutomationEngine()
 check(waiting.update(running: ["us.zoom.xos"], rules: rules, current: DeviceSettings()).changes.isEmpty,
       "nothing sent before the earbuds report their settings")
-check(waiting.update(running: ["us.zoom.xos"], rules: rules,
-                     current: DeviceSettings(noiseMode: .anc)) == (DeviceSettings(noiseMode: .transparency), "us.zoom.xos"),
-      "applies once the earbuds report, naming the app")
+let applied = waiting.update(running: ["us.zoom.xos"], rules: rules, current: DeviceSettings(noiseMode: .anc))
+check(applied.changes == DeviceSettings(noiseMode: .transparency), "applies once the earbuds report")
+check(applied.app == "us.zoom.xos", "names the app that caused it")
 
+section("Jieli protocol")
 // Jieli (Hoco): byte strings captured from a HOCO EQ34 Plus ANC.
 func bytes(_ s: String) -> [UInt8] { hex(s.replacingOccurrences(of: " ", with: "")) }
 
@@ -223,17 +244,21 @@ check(JieliCodec.decodeAdvInfo(bytes("04 00 8a 32 00")).battery?.left == Battery
 check(JieliCodec.encodeSetLowLatency(true) == bytes("02 05 02"), "jieli game mode on")
 check(JieliCodec.encodeGetName() == bytes("00 00 00 02"), "jieli name mask")
 check(JieliCodec.encodeSetName("  My Buds ") == bytes("08 01 4d 79 20 42 75 64 73"), "jieli set name, trimmed")
-check(JieliCodec.encodeSetName("") == nil && JieliCodec.encodeSetName("   ") == nil, "empty name refused")
-check(JieliCodec.encodeSetName(String(repeating: "a", count: 20)) != nil
-      && JieliCodec.encodeSetName(String(repeating: "a", count: 21)) == nil, "name up to 20 bytes")
+check(JieliCodec.encodeSetName("") == nil, "empty name refused")
+check(JieliCodec.encodeSetName("   ") == nil, "blank name refused")
+check(JieliCodec.encodeSetName(String(repeating: "a", count: 20)) != nil, "20-byte name accepted")
+check(JieliCodec.encodeSetName(String(repeating: "a", count: 21)) == nil, "21-byte name refused")
 check(JieliCodec.encodeSetName("Ünïcødé Buds 🎧") == nil, "multi-byte characters count as bytes: 21 > 20")
 
+section("Touch controls and custom EQ")
 // Touch controls and custom EQ: bytes from a HOCO EQ34 Plus ANC.
 let keys = JieliCodec.decodeAdvInfo(bytes("13 02 01 01 05 02 01 05 01 02 04 02 02 04 01 03 03 02 03 03")).touchControls
 check(keys?.count == 6, "six gestures reported")
 check(keys?.first == TouchControl(bud: .left, gesture: 1, function: 5), "left single tap: play/pause")
-check(keys?.contains(TouchControl(bud: .right, gesture: 3, function: 3)) == true, "right triple tap: previous track")
-check(TouchFunction.label(for: 4) == "Next Track" && TouchFunction.label(for: 42) == "Other (42)", "function labels")
+let reportedKeys: [TouchControl] = keys ?? []
+check(reportedKeys.contains(TouchControl(bud: .right, gesture: 3, function: 3)), "right triple tap: previous track")
+check(TouchFunction.label(for: 4) == "Next Track", "function label")
+check(TouchFunction.label(for: 42) == "Other (42)", "unknown function label")
 check(JieliCodec.encodeSetTouchControl(TouchControl(bud: .left, gesture: 1, function: 5)) == bytes("04 02 01 01 05"),
       "set one gesture (accepted by the earbuds, result 0)")
 check(JieliCodec.encodeSetTouchControl(TouchControl(bud: .right, gesture: 2, function: 255)) == bytes("04 02 02 02 ff"),
@@ -245,14 +270,17 @@ let table = JieliCodec.decodeSysInfo(bytes("""
     ff 2c 0c 0a 00 1f 00 3e 00 7d 00 fa 01 f4 03 e8 07 d0 0f a0 1f 40 3e 80 \
     00 00 00 00 00 00 00 00 00 00 00 06 00 00 00 04 04 04 00 02 03 04
     """))
-check(table.eqFrequencies == [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000], "eq band frequencies")
+let expectedBands: [Int] = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+check(table.eqFrequencies == expectedBands, "eq band frequencies")
 check(table.eqGains[6] == bytes("00 00 00 04 04 04 00 02 03 04"), "stored custom slot")
 check(JieliCodec.encodeSetCustomEq(gains: [1, 0, 0, 4, 4, 4, 0, 2, 3, 4])
       == bytes("ff 0c 04 06 01 00 00 04 04 04 00 02 03 04"), "custom eq (accepted by the earbuds)")
 check(JieliCodec.encodeSetCustomEq(gains: [-8, -9, 9, 0, 0, 0, 0, 0, 0, 0])
       == bytes("ff 0c 04 06 f8 f8 08 00 00 00 00 00 00 00"), "custom gains clamp to ±8 dB")
-check(CustomEq.label(hertz: 125) == "125" && CustomEq.label(hertz: 16000) == "16k", "band labels")
+check(CustomEq.label(hertz: 125) == "125", "band label below 1 kHz")
+check(CustomEq.label(hertz: 16000) == "16k", "band label in kHz")
 
+section("Capabilities")
 var hoco = Capabilities()
 check(!hoco.noiseControl && !hoco.lowLatency && hoco.eqPresets.isEmpty, "nothing shown before the earbuds report")
 hoco.learn(from: sys)

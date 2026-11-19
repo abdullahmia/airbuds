@@ -14,8 +14,12 @@ jobs:
       - name: Toolchain
         run: swift --version
 
+      - name: Build checks
+        run: swift build -c release --product AirBudsKitChecks
+
       - name: Protocol checks
-        run: swift run -c release AirBudsKitChecks
+        timeout-minutes: 2
+        run: swift run -c release --skip-build AirBudsKitChecks
 
       - name: Build app (universal)
         run: scripts/build-app.sh --universal
