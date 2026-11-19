@@ -50,6 +50,8 @@ public struct Capabilities: Equatable {
     public var noiseControl = false
     public var transparency = false
     public var lowLatency = false
+    /// The earbuds report their name, so they can be renamed.
+    public var rename = false
     public var eqPresets: [EqPreset] = []
 
     public init() {}

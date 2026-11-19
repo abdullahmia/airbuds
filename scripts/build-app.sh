@@ -1,5 +1,6 @@
 #!/bin/bash
-# Builds "AirBuds.app" into build/. Needs only the Xcode Command Line Tools.
+# Builds "AirBuds.app" into build/, with Sparkle.framework embedded for
+# auto-update. Needs only the Xcode Command Line Tools.
 #
 #   scripts/build-app.sh              release build for this Mac's chip
 #   scripts/build-app.sh --universal  arm64 + x86_64
@@ -20,16 +21,19 @@ done
 
 if [ "$UNIVERSAL" = 1 ]; then
   swift build -c release --product AirBuds --arch arm64 --arch x86_64
-  BIN="$(swift build -c release --product AirBuds --arch arm64 --arch x86_64 --show-bin-path)/AirBuds"
+  BIN_DIR="$(swift build -c release --product AirBuds --arch arm64 --arch x86_64 --show-bin-path)"
 else
   swift build -c release --product AirBuds
-  BIN="$(swift build -c release --product AirBuds --show-bin-path)/AirBuds"
+  BIN_DIR="$(swift build -c release --product AirBuds --show-bin-path)"
 fi
+BIN="$BIN_DIR/AirBuds"
 
 APP="build/AirBuds.app"
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN" "$APP/Contents/MacOS/AirBuds"
+# Sparkle (auto-update); ditto keeps the framework's symlinks.
+ditto "$BIN_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 if [ -n "${VERSION:-}" ]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
@@ -38,6 +42,7 @@ fi
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 # Ad-hoc signature: enough for Bluetooth permission and Open at Login on this Mac.
+# Sparkle.framework keeps the Sparkle project's own signature.
 codesign --force --sign - --timestamp=none "$APP"
 echo "Built $APP"
 

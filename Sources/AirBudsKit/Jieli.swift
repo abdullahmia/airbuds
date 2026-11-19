@@ -10,6 +10,8 @@
 //
 // Verified against a HOCO EQ34 Plus ANC (firmware 2.4.0).
 
+import Foundation
+
 // MARK: - Handshake
 
 public enum JieliAuth {
@@ -343,6 +345,23 @@ public enum JieliCodec {
     public static func encodeGetAdvInfo() -> [UInt8] { mask([advBattery, advName, advWorkMode]) }
     public static func encodeGetBattery() -> [UInt8] { mask([advBattery]) }
     public static func encodeGetLowLatency() -> [UInt8] { mask([advWorkMode]) }
+    public static func encodeGetName() -> [UInt8] { mask([advName]) }
+
+    /// The longest name the earbuds take, in UTF-8 bytes (Jieli's app allows 20).
+    public static let maxNameBytes = 20
+
+    /// `name` trimmed, or nil if it's empty or too long.
+    public static func validName(_ name: String) -> String? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed.utf8.count <= maxNameBytes else { return nil }
+        return trimmed
+    }
+
+    /// Sets the Bluetooth name (ADV attribute 01). nil if the name isn't valid.
+    public static func encodeSetName(_ name: String) -> [UInt8]? {
+        guard let valid = validName(name) else { return nil }
+        return attribute(advName, Array(valid.utf8))
+    }
 
     public static func decodeAdvInfo(_ body: [UInt8]) -> JieliAdvInfo {
         var info = JieliAdvInfo()
@@ -391,6 +410,7 @@ extension Capabilities {
 
     public mutating func learn(from info: JieliAdvInfo) {
         if info.lowLatency != nil { lowLatency = true }
+        if info.name != nil { rename = true }
     }
 
     /// Product names that get the Jieli connection.

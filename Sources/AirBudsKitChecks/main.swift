@@ -129,6 +129,7 @@ check(command("airbuds://eq/Rock") == .eq("rock"), "url: eq")
 check(command("airbuds://low-latency/on") == .lowLatency(true), "url: low latency on")
 check(command("airbuds://low-latency/toggle") == .lowLatency(nil), "url: low latency toggle")
 check(command("airbuds://open") == .open, "url: open")
+check(command("airbuds://connect") == .connect && command("airbuds://disconnect") == .disconnect, "url: connect, disconnect")
 check(command("airbuds://noise/loud") == nil && command("https://noise/anc") == nil, "url: unknown ignored")
 check(AirBudsCommand.preset(named: "normal", in: JieliCodec.eqPresets)?.id == 0, "eq by label")
 check(AirBudsCommand.preset(named: "3", in: JieliCodec.eqPresets)?.key == "classical", "eq by number")
@@ -220,6 +221,12 @@ check(adv?.lowLatency == false, "jieli work mode normal")
 check(JieliCodec.decodeAdvInfo(bytes("04 00 8a 32 00")).battery?.left == BatteryLevel(level: 10, charging: true),
       "jieli charging bit")
 check(JieliCodec.encodeSetLowLatency(true) == bytes("02 05 02"), "jieli game mode on")
+check(JieliCodec.encodeGetName() == bytes("00 00 00 02"), "jieli name mask")
+check(JieliCodec.encodeSetName("  My Buds ") == bytes("08 01 4d 79 20 42 75 64 73"), "jieli set name, trimmed")
+check(JieliCodec.encodeSetName("") == nil && JieliCodec.encodeSetName("   ") == nil, "empty name refused")
+check(JieliCodec.encodeSetName(String(repeating: "a", count: 20)) != nil
+      && JieliCodec.encodeSetName(String(repeating: "a", count: 21)) == nil, "name up to 20 bytes")
+check(JieliCodec.encodeSetName("Ünïcødé Buds 🎧") == nil, "multi-byte characters count as bytes: 21 > 20")
 
 var hoco = Capabilities()
 check(!hoco.noiseControl && !hoco.lowLatency && hoco.eqPresets.isEmpty, "nothing shown before the earbuds report")
@@ -227,6 +234,7 @@ hoco.learn(from: sys)
 hoco.learn(from: adv ?? JieliAdvInfo())
 check(hoco.noiseControl && hoco.transparency, "hoco noise control learned")
 check(hoco.lowLatency && hoco.eqPresets.count == 6, "hoco low latency and presets learned")
+check(hoco.rename, "rename offered once the earbuds report their name")
 check(Capabilities.isJieli(deviceName: "HOCO EQ34 Plus ANC") && !Capabilities.isJieli(deviceName: "AirPods Pro"),
       "jieli name match")
 

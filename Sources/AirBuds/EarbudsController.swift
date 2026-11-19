@@ -10,10 +10,17 @@ import AirBudsKit
 
 final class EarbudsController: ObservableObject {
     @Published private(set) var state = DeviceState()
+    /// Paired supported earbuds, connected for audio or not.
+    @Published private(set) var paired: [PairedEarbuds] = []
+    /// Earbuds being connected from the panel.
+    @Published private(set) var connecting: String?
+    /// Earbuds whose last connection attempt failed.
+    @Published private(set) var connectFailed: String?
 
     private static let batteryPoll: TimeInterval = 60
 
     private let session = JieliSession()
+    private let classic = ClassicConnection()
     private var batteryTimer: Timer?
 
     private lazy var noise = ConfirmedSetting<NoiseMode>(
@@ -28,6 +35,10 @@ final class EarbudsController: ObservableObject {
         read: { [unowned self] in self.session.readLowLatency() },
         onTimeout: { [unowned self] in self.state.quick.lowLatencyPending = false }
     )
+    private lazy var nameConfirm = ConfirmedSetting<String>(
+        read: { [unowned self] in self.session.readName() },
+        onTimeout: { [unowned self] in self.state.namePending = false }
+    )
 
     private var caps: Capabilities { state.capabilities }
 
@@ -38,12 +49,18 @@ final class EarbudsController: ObservableObject {
         session.onDisconnected = { [unowned self] in self.didDisconnect() }
         session.onSysInfo = { [unowned self] info in self.onSysInfo(info) }
         session.onAdvInfo = { [unowned self] info in self.onAdvInfo(info) }
+        session.onPairedChanged = { [unowned self] devices in self.paired = devices }
+        classic.onFinished = { [unowned self] address, success in
+            if self.connecting == address { self.connecting = nil }
+            if !success { self.connectFailed = address }
+        }
     }
 
     func start() { session.start() }
 
     #if DEBUG
     func setSampleState(_ sample: DeviceState) { state = sample }
+    func setSamplePaired(_ sample: [PairedEarbuds]) { paired = sample }
     #endif
 
     func stop() {
@@ -53,6 +70,26 @@ final class EarbudsController: ObservableObject {
 
     func refreshBattery() {
         if state.connected { session.readBattery() }
+    }
+
+    // MARK: - Connection
+
+    /// Connects paired earbuds for audio; the control link follows by itself.
+    func connect(_ address: String) {
+        guard connecting == nil, !state.connected else { return }
+        connectFailed = nil
+        if classic.connect(address: address) {
+            if paired.first(where: { $0.address == address })?.connected != true { connecting = address }
+        } else {
+            connectFailed = address
+        }
+    }
+
+    /// Disconnects the earbuds from this Mac, audio included.
+    func disconnect() {
+        guard state.connected, let address = state.address else { return }
+        session.dropLink()
+        _ = classic.disconnect(address: address)
     }
 
     // MARK: - Settings
@@ -71,6 +108,18 @@ final class EarbudsController: ObservableObject {
         lowLatencyConfirm.begin(on)
         state.quick.lowLatency = on
         state.quick.lowLatencyPending = true
+    }
+
+    /// Renames the earbuds. False if the name isn't valid (empty or too long).
+    @discardableResult
+    func rename(_ name: String) -> Bool {
+        guard let valid = JieliCodec.validName(name) else { return false }
+        guard state.connected, caps.rename, !nameConfirm.pending, valid != state.name else { return true }
+        session.setName(valid)
+        nameConfirm.begin(valid)
+        state.name = valid
+        state.namePending = true
+        return true
     }
 
     func setEqPreset(_ id: Int) {
@@ -128,6 +177,10 @@ final class EarbudsController: ObservableObject {
         guard state.connected else { return }
         state.capabilities.learn(from: info)
         if let battery = info.battery { state.battery = battery }
+        if let name = info.name, !name.isEmpty, nameConfirm.accept(name) {
+            state.name = name
+            state.namePending = false
+        }
         if let on = info.lowLatency, lowLatencyConfirm.accept(on) {
             state.quick.lowLatency = on
             state.quick.lowLatencyPending = false
@@ -162,5 +215,6 @@ final class EarbudsController: ObservableObject {
         noise.reset()
         eqConfirm.reset()
         lowLatencyConfirm.reset()
+        nameConfirm.reset()
     }
 }

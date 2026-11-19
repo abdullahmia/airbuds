@@ -35,6 +35,12 @@
       </array>
     </dict>
   </array>
+  <key>SUFeedURL</key>
+  <string>https://github.com/abdullahmia/airbuds/releases/latest/download/appcast.xml</string>
+  <key>SUPublicEDKey</key>
+  <string>WB57Q0j7/QW8uQnuDCXHH1zyedHa4fqaJmyEl1chh6c=</string>
+  <key>SUEnableAutomaticChecks</key>
+  <true/>
   <key>NSBluetoothAlwaysUsageDescription</key>
   <string>AirBuds connects to your earbuds to show battery and change noise control, EQ and other settings.</string>
 </dict>

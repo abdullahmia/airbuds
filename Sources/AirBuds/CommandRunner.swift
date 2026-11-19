@@ -102,6 +102,19 @@ final class CommandRunner {
         case .open:
             openPanel()
             return .done(nil)
+        case .connect:
+            if state.connected { return .done(nil) }
+            guard let earbuds = controller.paired.first(where: { !$0.connected }) ?? controller.paired.first else {
+                return .unsupported("No paired Hoco earbuds")
+            }
+            controller.connect(earbuds.address)
+            return .done(HUDMessage(symbol: "earbuds", title: "Connecting…", detail: earbuds.name))
+
+        case .disconnect:
+            guard state.connected else { return .done(nil) }
+            let name = state.name
+            controller.disconnect()
+            return .done(HUDMessage(symbol: "earbuds", title: "Disconnected", detail: name))
 
         case .noise(let mode):
             guard ready else { return .notReady }

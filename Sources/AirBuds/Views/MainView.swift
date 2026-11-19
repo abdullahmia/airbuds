@@ -1,4 +1,5 @@
-// Main page: header, battery and noise control.
+// Main page: header, battery and noise control; paired earbuds to connect when
+// none are connected.
 
 import AirBudsKit
 import SwiftUI
@@ -22,21 +23,7 @@ struct MainView: View {
                     NoiseControlSection()
                 }
             } else {
-                Text("Connect your Hoco earbuds in Bluetooth settings.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 14)
-                Button("Open Bluetooth Settings…") {
-                    if let url = URL(string: "x-apple.systempreferences:com.apple.BluetoothSettings") {
-                        NSWorkspace.shared.open(url)
-                    }
-                }
-                .buttonStyle(.link)
-                .font(.system(size: 12))
-                .padding(.bottom, 10)
+                DisconnectedSection()
             }
         }
     }
@@ -93,6 +80,70 @@ private struct HeaderButton: View {
         .opacity(enabled ? 1 : 0.35)
         .help(help)
         .onHover { hovering.value = $0 }
+    }
+}
+
+// MARK: - Not connected
+
+private struct DisconnectedSection: View {
+    @EnvironmentObject var device: EarbudsController
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if device.paired.isEmpty {
+                Text("Pair your Hoco earbuds in Bluetooth settings.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 14)
+            } else {
+                SectionTitle("Your Earbuds")
+                ForEach(device.paired) { earbuds in
+                    PairedRow(earbuds: earbuds)
+                }
+                PanelDivider()
+            }
+            Button("Open Bluetooth Settings…") {
+                if let url = URL(string: "x-apple.systempreferences:com.apple.BluetoothSettings") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+            .buttonStyle(.link)
+            .font(.system(size: 12))
+            .padding(.bottom, 10)
+        }
+    }
+}
+
+private struct PairedRow: View {
+    let earbuds: PairedEarbuds
+    @EnvironmentObject var device: EarbudsController
+
+    var body: some View {
+        // Connected for audio but the control link isn't up yet: that's connecting too.
+        let busy: Bool = device.connecting == earbuds.address || earbuds.connected
+        let failed: Bool = device.connectFailed == earbuds.address
+        Button { device.connect(earbuds.address) } label: {
+            HStack(spacing: 10) {
+                IconBadge(symbol: "earbuds", pending: busy)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(earbuds.name).font(.system(size: 13)).lineLimit(1)
+                    Text(busy ? "Connecting…" : failed ? "Couldn't connect. Are they out of the case?" : "Not connected")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 4)
+                if !busy {
+                    Text("Connect").font(.system(size: 12)).foregroundStyle(Color.accentColor)
+                }
+            }
+        }
+        .buttonStyle(HoverRowStyle())
+        .disabled(busy || device.connecting != nil)
+        .help(busy ? "Connecting to \(earbuds.name)" : "Connect \(earbuds.name) to this Mac")
     }
 }
 

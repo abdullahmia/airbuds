@@ -42,6 +42,9 @@ telemetry.
 - **Low Latency** (game mode)
 - **Automations**: switch noise control, EQ or Low Latency while particular apps are open
 - **`airbuds://` links** for the Shortcuts app, scripts and Terminal
+- **Rename** your earbuds
+- **Connect and disconnect** from the panel, without opening Bluetooth settings
+- **Automatic updates** through Sparkle
 - **Device info**: firmware version and Bluetooth address
 - **Open at Login**, light and dark mode, and your system accent color
 
@@ -88,7 +91,8 @@ off from the right-click menu.
 | <img src="docs/screenshots/main-light.png" width="300" alt="Main panel"> | **Main panel**<br>Battery for each bud and the case (shown when the earbuds report it), and how long until the first bud runs out. Click a noise mode to switch.<br><br>Buttons at the top right: **Equalizer**, **Quick Settings** and **Quit**. |
 | <img src="docs/screenshots/battery-light.png" width="300" alt="Battery page with a chart of this session"> | **Battery**<br>Click the battery row. The chart shows each bud's level since you started listening; hover it for the exact reading. Below it, time left for each bud. |
 | <img src="docs/screenshots/eq-light.png" width="300" alt="Equalizer"> | **Equalizer**<br>Click a preset to apply it. |
-| <img src="docs/screenshots/quick-light.png" width="300" alt="Quick Settings"> | **Quick Settings**<br>Turn **Low Latency** on or off, open **Automations**, and see the firmware version and Bluetooth address. |
+| <img src="docs/screenshots/quick-light.png" width="300" alt="Quick Settings"> | **Quick Settings**<br>Turn **Low Latency** on or off, open **Automations**, **Disconnect** the earbuds, and see the firmware version and Bluetooth address. Click the pencil next to the name to **rename** them. |
+| <img src="docs/screenshots/disconnected-light.png" width="300" alt="Not connected, with paired earbuds and a Connect button"> | **Not connected**<br>Your paired Hoco earbuds are listed. Click one to **connect** it to this Mac. |
 
 **Right-click the menu bar icon** for:
 
@@ -99,6 +103,7 @@ off from the right-click menu.
 - **Fully Charged Alerts**: on by default. Notifies when a bud or the case reaches 100% while charging.
 - **Noise Control Shortcut (⌃⌥N)**: on by default.
 - **Automations…**
+- **Check for Updates…**: AirBuds also checks once a day by itself.
 - **Quit**
 
 **Keyboard shortcut**
@@ -131,6 +136,8 @@ app (the **Open URLs** action), a script, or Terminal:
 | `airbuds://noise/next` | Next noise mode, like ⌃⌥N |
 | `airbuds://eq/rock` | EQ preset, by name or number (`normal`, `pop`, `3`, …) |
 | `airbuds://low-latency/on` | Low Latency `on`, `off` or `toggle` |
+| `airbuds://connect` | Connect your paired earbuds |
+| `airbuds://disconnect` | Disconnect them |
 | `airbuds://open` | Open the panel |
 
 ```bash
@@ -142,6 +149,10 @@ A link that launches AirBuds waits up to 20 seconds for the earbuds to connect.
 **Tips**
 
 - Changes made with the buttons on the earbuds show up in the panel by themselves.
+- A new name is saved on the earbuds right away (up to 20 bytes). Other
+  devices, and the Bluetooth list on this Mac, show it after the earbuds
+  restart: put them in the case and take them out again. AirBuds keeps
+  recognising them under the new name.
 - The time-left estimate appears after the battery has dropped a couple of
   times, since some earbuds only report in 10% steps. Battery history stays on
   your Mac (`~/Library/Application Support/AirBuds/`) and keeps the last 7 days.
@@ -188,6 +199,27 @@ git push origin v0.2.0
 
 You can also start it by hand from the **Actions** tab (Release → Run workflow).
 
+#### Automatic updates (Sparkle)
+
+Each release also publishes `appcast.xml`, the feed installed copies check
+(`SUFeedURL` in `Info.plist` points at the latest release's copy). The feed and
+the zip are signed with an EdDSA key whose public half is `SUPublicEDKey` in
+`Info.plist`. The private half lives in the maintainer's login keychain, and
+CI needs it as the repository secret `SPARKLE_PRIVATE_KEY`. One-time setup:
+
+```bash
+swift package resolve
+.build/artifacts/sparkle/Sparkle/bin/generate_keys -x sparkle-private.key   # export from the keychain
+# GitHub → Settings → Secrets and variables → Actions → New secret:
+#   name SPARKLE_PRIVATE_KEY, value: the file's contents
+rm -P sparkle-private.key
+```
+
+Keep the key safe: without it you can't ship updates to existing installs.
+Without the secret, releases still publish but skip `appcast.xml`, so installed
+copies aren't told about them. To try the feed locally, `scripts/make-appcast.sh
+<version> <build>` signs with the key in your keychain.
+
 ## Project layout
 
 ```
@@ -195,7 +227,7 @@ Sources/AirBudsKit/        Earbud protocol, plus battery, automation and link lo
 Sources/AirBuds/           Menu bar app: BLE transport, device state, SwiftUI panel
 Sources/AirBudsKitChecks/  Self-checks for AirBudsKit
 Resources/                 Info.plist and app icon
-scripts/                   build-app.sh, make-dmg.sh
+scripts/                   build-app.sh, make-dmg.sh, make-appcast.sh
 docs/                      Architecture, protocol, screenshots
 .github/workflows/         CI and release
 ```
@@ -208,6 +240,7 @@ More detail:
 
 ## Credits
 
+- Updates by [Sparkle](https://sparkle-project.org) (MIT).
 - The handshake uses the cipher from Jieli's own SDK (`jl_auth`). The
   [MOONDROP Pudding control plugin](https://github.com/maxlen727/MOONDROP-PUDDING-dux-shell-plugin)
   documents the handshake sequence. The battery, noise control, EQ and

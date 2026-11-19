@@ -1,4 +1,5 @@
-// Quick Settings page: a Low Latency tile, a link to Automations and device info.
+// Quick Settings page: a Low Latency tile, Automations, Disconnect, and device
+// info with the earbuds' name, which can be changed here.
 
 import AirBudsKit
 import SwiftUI
@@ -30,6 +31,16 @@ struct QuickSettingsView: View {
             .buttonStyle(HoverRowStyle())
             .help("Change settings automatically while particular apps are open")
 
+            Button { device.disconnect() } label: {
+                HStack(spacing: 10) {
+                    IconBadge(symbol: "xmark")
+                    Text("Disconnect").font(.system(size: 13))
+                    Spacer()
+                }
+            }
+            .buttonStyle(HoverRowStyle())
+            .help("Disconnect the earbuds from this Mac")
+
             DeviceInfo()
         }
     }
@@ -55,6 +66,7 @@ private struct DeviceInfo: View {
         let state = device.state
         VStack(spacing: 3) {
             Divider().padding(.bottom, 2)
+            NameRow()
             row("Firmware", state.quick.firmware)
             if let address = state.address, !address.isEmpty { row("Bluetooth Address", address.uppercased()) }
         }
@@ -70,5 +82,72 @@ private struct DeviceInfo: View {
         }
         .font(.system(size: 11))
         .foregroundStyle(.secondary)
+    }
+}
+
+// MARK: - Name
+
+/// The earbuds' name, with a pencil to rename them when they support it.
+private struct NameRow: View {
+    @EnvironmentObject var device: EarbudsController
+    /// The name being typed; nil when not editing.
+    @StateObject private var draft = Local<String?>(nil)
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        let state = device.state
+        if let text = draft.value {
+            editor(text)
+        } else {
+            HStack(spacing: 4) {
+                Text("Name")
+                Spacer()
+                Text(state.name ?? "—").textSelection(.enabled).lineLimit(1)
+                if state.namePending {
+                    ProgressView().controlSize(.small).scaleEffect(0.5).frame(width: 14, height: 14)
+                } else if state.capabilities.rename {
+                    Button { draft.value = state.name ?? "" } label: {
+                        Image(systemName: "pencil").frame(width: 14, height: 14).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Rename")
+                }
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    private func editor(_ text: String) -> some View {
+        let valid = JieliCodec.validName(text)
+        let bytes: Int = text.trimmingCharacters(in: .whitespacesAndNewlines).utf8.count
+        let tooLong: Bool = bytes > JieliCodec.maxNameBytes
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                TextField("Name", text: Binding(get: { draft.value ?? "" }, set: { draft.value = $0 }))
+                    .textFieldStyle(.roundedBorder)
+                    .controlSize(.small)
+                    .focused($focused)
+                    .onSubmit { save() }
+                Button("Cancel") { draft.value = nil }
+                    .controlSize(.small)
+                Button("Rename") { save() }
+                    .controlSize(.small)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(valid == nil)
+            }
+            Text(tooLong ? "Too long: \(bytes) of \(JieliCodec.maxNameBytes) bytes."
+                         : "Other devices see the new name after the earbuds restart.")
+                .font(.system(size: 10))
+                .foregroundStyle(tooLong ? Color.red : Color.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 2)
+        .onAppear { DispatchQueue.main.async { focused = true } }
+    }
+
+    private func save() {
+        guard let text = draft.value, device.rename(text) else { return }
+        draft.value = nil
     }
 }

@@ -21,15 +21,15 @@ new protocol work. See the README for how to use them.
 | 5 | ✅ **Shortcuts and URL scheme** | `airbuds://noise/transparency`, `airbuds://eq/rock`, `airbuds://low-latency/toggle` and more; works with Shortcuts' Open URLs action. |
 | 6 | ✅ **Per-app automation** | An Automations window: noise mode, EQ and Low Latency per app while it's open, restored when it quits. |
 
-## Medium
+## Medium: done
 
-The protocol side is known or simple. Mostly app work.
+All three shipped. See the README for how to use them.
 
 | # | Feature | Notes |
 | --- | --- | --- |
-| 7 | **Rename your earbuds** | ADV attribute `01` (Name) is already in the [protocol table](PROTOCOL.md#adv-info-attributes). Jieli earbuds usually accept a new name through `C0` (Set ADV info). Needs testing on real hardware. |
-| 8 | **Auto-update with Sparkle** | Users get new versions without downloading a DMG each time. Sparkle signs updates with its own EdDSA key, so it works without a paid Apple Developer account, and apps it installs don't trigger the Gatekeeper warning again. |
-| 9 | **Connect / disconnect button** | Use IOBluetooth to connect the earbuds from the panel, without going into System Settings → Bluetooth. |
+| 7 | ✅ **Rename your earbuds** | Pencil next to the name in Quick Settings. ADV attribute `01` through `C0`, up to 20 bytes; the EQ34 Plus ANC accepts it (result 0) and reads it back. Other devices see it after the earbuds restart. Renamed earbuds are remembered by address. |
+| 8 | ✅ **Auto-update with Sparkle** | Daily checks and Check for Updates…; releases publish an EdDSA-signed `appcast.xml`. Needs the `SPARKLE_PRIVATE_KEY` repository secret (see README → Releasing). |
+| 9 | ✅ **Connect / disconnect button** | Paired earbuds with a Connect button when none are connected, Disconnect in Quick Settings, and `airbuds://connect` / `disconnect`. |
 
 ## Bigger: needs reverse engineering
 
@@ -53,8 +53,7 @@ firmware supports it and how.
 ## Suggested order
 
 1. **Custom EQ** (#10): the feature people most often miss in the official Hoco app.
-2. **Rename your earbuds** (#7): the attribute is already known.
-3. **Auto-update with Sparkle** (#8): makes every later feature easier to ship.
+2. **Find My Earbuds** (#12): useful and usually a single command once captured.
 
 Notes on the shipped quick wins:
 

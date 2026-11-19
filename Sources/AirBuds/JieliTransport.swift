@@ -4,16 +4,30 @@
 //
 // It only scans while a supported device is connected for audio, so there's no
 // BLE scanning the rest of the time. CoreBluetooth calls back on the main queue.
+//
+// Supported devices are paired ones named "hoco", plus any that passed the
+// handshake before (remembered by address), so renamed earbuds are still found.
 
 import CoreBluetooth
 import Foundation
 import IOBluetooth
 import AirBudsKit
 
+/// A paired pair of supported earbuds, as the panel lists them.
+struct PairedEarbuds: Equatable, Identifiable {
+    var id: String { address }
+    let name: String
+    let address: String
+    /// Connected for audio (classic Bluetooth).
+    let connected: Bool
+}
+
 final class JieliTransport: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     var onConnected: ((_ name: String, _ address: String) -> Void)?
     var onData: (([UInt8]) -> Void)?
     var onDisconnected: (() -> Void)?
+    /// The paired supported earbuds changed (checked every few seconds).
+    var onPairedChanged: (([PairedEarbuds]) -> Void)?
 
     private static let service = CBUUID(string: "AE00")
     private static let writeCharacteristic = CBUUID(string: "AE01")
@@ -49,6 +63,32 @@ final class JieliTransport: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     /// Failed attempts per classic address; reset when that device disconnects.
     private var attempts: [String: Int] = [:]
     private var stopped = true
+    private var paired: [PairedEarbuds] = []
+    private var connectNotification: IOBluetoothUserNotification?
+    /// Supported devices connected according to notifications, by address.
+    private var notifiedConnected: [String: IOBluetoothUserNotification] = [:]
+
+    /// Also called once for each device already connected when registering.
+    @objc private func classicConnected(_ note: IOBluetoothUserNotification, device: IOBluetoothDevice) {
+        guard let address = device.addressString?.lowercased(), isSupported(device, address: address) else { return }
+        Log.trace("\(device.name ?? address) connected")
+        if notifiedConnected[address] == nil {
+            notifiedConnected[address] = device.register(forDisconnectNotification: self,
+                                                         selector: #selector(classicDisconnected(_:device:)))
+        }
+        check()
+    }
+
+    @objc private func classicDisconnected(_ note: IOBluetoothUserNotification, device: IOBluetoothDevice) {
+        guard let address = device.addressString?.lowercased() else { return }
+        Log.trace("\(device.name ?? address) disconnected")
+        notifiedConnected.removeValue(forKey: address)?.unregister()
+        check()
+    }
+
+    private func isSupported(_ device: IOBluetoothDevice, address: String) -> Bool {
+        Capabilities.isJieli(deviceName: device.name ?? "") || KnownEarbuds.addresses.contains(address)
+    }
 
     var isConnected: Bool { if case .ready = phase { return true } else { return false } }
 
@@ -56,6 +96,14 @@ final class JieliTransport: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         guard stopped else { return }
         stopped = false
         if central == nil { central = CBCentralManager(delegate: self, queue: nil) }
+        // IOBluetoothDevice.isConnected() in a long-running process can miss a
+        // reconnect (seen after Disconnect, then Connect, from the panel) and report
+        // false until relaunch. Connect and disconnect notifications don't, so they
+        // count too. They also let us react at once instead of on the next check.
+        if connectNotification == nil {
+            connectNotification = IOBluetoothDevice.register(forConnectNotifications: self,
+                                                             selector: #selector(classicConnected(_:device:)))
+        }
         check()
         checkTimer = Timer.scheduledTimer(withTimeInterval: Self.checkInterval, repeats: true) { [weak self] _ in
             self?.check()
@@ -64,6 +112,10 @@ final class JieliTransport: NSObject, CBCentralManagerDelegate, CBPeripheralDele
 
     func stop() {
         stopped = true
+        connectNotification?.unregister()
+        connectNotification = nil
+        notifiedConnected.values.forEach { $0.unregister() }
+        notifiedConnected = [:]
         checkTimer?.invalidate()
         checkTimer = nil
         central?.stopScan()
@@ -75,11 +127,30 @@ final class JieliTransport: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         send(bytes)
     }
 
+    /// Close the BLE link now (e.g. before disconnecting the earbuds).
+    func dropLink() {
+        Log.trace("Closing the BLE link")
+        disconnect()
+    }
+
     // MARK: Finding the earbuds
 
     /// Scan only while a supported classic device is connected and we aren't.
     private func check() {
-        guard !stopped, let central, central.state == .poweredOn else { return }
+        guard !stopped else { return }
+        let devices = pairedDevices()
+        if devices != paired {
+            Log.trace("Paired earbuds: " + devices.map { "\($0.name) (\($0.connected ? "connected" : "not connected"))" }
+                .joined(separator: ", "))
+            paired = devices
+            onPairedChanged?(devices)
+        }
+        guard let central, central.state == .poweredOn else { return }
+        // The earbuds left (disconnected for audio) but the BLE link lingers.
+        if isConnected, let target, !devices.contains(where: { $0.address == target.address && $0.connected }) {
+            Log.info("\(target.name) disconnected")
+            disconnect()
+        }
         if case .connecting(let since) = phase, Date().timeIntervalSince(since) > Self.connectTimeout {
             Log.info("BLE connection to \(target?.name ?? "earbuds") timed out")
             fail()
@@ -89,19 +160,34 @@ final class JieliTransport: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         guard case .idle = phase else { return }
 
         if candidates.contains(where: { (attempts[$0.address] ?? 0) < Self.maxAttempts }) {
-            if !central.isScanning { central.scanForPeripherals(withServices: nil) }
+            if !central.isScanning {
+                Log.trace("Scanning for the earbuds' BLE side")
+                central.scanForPeripherals(withServices: nil)
+            }
         } else if central.isScanning {
+            Log.trace("Stopped scanning")
             central.stopScan()
         }
     }
 
     private func connectedTargets() -> [Target] {
-        guard let paired = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] else { return [] }
-        return paired.compactMap { device in
-            guard device.isConnected(), let name = device.name, Capabilities.isJieli(deviceName: name),
-                  let address = device.addressString else { return nil }
-            let bytes = address.split(whereSeparator: { $0 == "-" || $0 == ":" }).compactMap { UInt8($0, radix: 16) }
-            return Target(name: name, address: address, addressBytes: bytes)
+        pairedDevices().compactMap { device in
+            guard device.connected else { return nil }
+            let bytes = device.address.split(whereSeparator: { $0 == "-" || $0 == ":" }).compactMap { UInt8($0, radix: 16) }
+            return Target(name: device.name, address: device.address, addressBytes: bytes)
+        }
+    }
+
+    /// Paired devices this app supports, connected or not.
+    private func pairedDevices() -> [PairedEarbuds] {
+        guard let devices = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] else { return [] }
+        return devices.compactMap { device in
+            guard let address = device.addressString?.lowercased(), isSupported(device, address: address) else {
+                return nil
+            }
+            let name = device.name ?? ""
+            let connected: Bool = device.isConnected() || notifiedConnected[address] != nil
+            return PairedEarbuds(name: name.isEmpty ? address.uppercased() : name, address: address, connected: connected)
         }
     }
 
@@ -127,8 +213,12 @@ final class JieliTransport: NSObject, CBCentralManagerDelegate, CBPeripheralDele
             guard t.addressBytes.count == 6 else { return false }
             return contains(beacon, t.addressBytes) || contains(beacon, Array(t.addressBytes.reversed()))
         }
-        guard let match else { return }
+        guard let match else {
+            Log.trace("Ignoring Jieli advert from \(localName ?? "unnamed"): no connected match")
+            return
+        }
 
+        Log.trace("Found \(match.name) over BLE, connecting")
         central.stopScan()
         target = match
         self.peripheral = peripheral
@@ -219,6 +309,7 @@ final class JieliTransport: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         passTimer.cancel()
         phase = .ready
         attempts[target.address] = 0
+        KnownEarbuds.remember(target.address)
         Log.info("Connected to \(target.name) over BLE")
         onConnected?(target.name, target.address)
     }
@@ -262,5 +353,20 @@ final class JieliTransport: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         writer = nil
         target = nil
         phase = .idle
+    }
+}
+
+/// Addresses of earbuds that passed the handshake, so they're recognised after a rename.
+enum KnownEarbuds {
+    private static let key = "knownEarbuds"
+
+    static var addresses: Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+    }
+
+    static func remember(_ address: String) {
+        let lowered = address.lowercased()
+        guard !addresses.contains(lowered) else { return }
+        UserDefaults.standard.set(Array(addresses) + [lowered], forKey: key)
     }
 }

@@ -10,6 +10,7 @@ final class JieliSession {
     var onSysInfo: ((JieliSysInfo) -> Void)?
     var onAdvInfo: ((JieliAdvInfo) -> Void)?
     var onDisconnected: (() -> Void)?
+    var onPairedChanged: (([PairedEarbuds]) -> Void)?
 
     private let transport = JieliTransport()
     private var parser = RcspParser()
@@ -31,10 +32,12 @@ final class JieliSession {
             for frame in parser.push(bytes) { handle(frame) }
         }
         transport.onDisconnected = { [unowned self] in onDisconnected?() }
+        transport.onPairedChanged = { [unowned self] devices in onPairedChanged?(devices) }
     }
 
     func start() { transport.start() }
     func stop() { transport.stop() }
+    func dropLink() { transport.dropLink() }
 
     // MARK: Reads
 
@@ -47,6 +50,7 @@ final class JieliSession {
     func readNoiseMode() { send(Rcsp.getSysInfo, JieliCodec.encodeGetNoiseMode()) }
     func readEq() { send(Rcsp.getSysInfo, JieliCodec.encodeGetEq()) }
     func readLowLatency() { send(Rcsp.getAdvInfo, JieliCodec.encodeGetLowLatency()) }
+    func readName() { send(Rcsp.getAdvInfo, JieliCodec.encodeGetName()) }
 
     // MARK: Settings
 
@@ -60,6 +64,11 @@ final class JieliSession {
 
     func setLowLatency(_ on: Bool) {
         send(Rcsp.setAdvInfo, JieliCodec.encodeSetLowLatency(on))
+    }
+
+    func setName(_ name: String) {
+        guard let params = JieliCodec.encodeSetName(name) else { return }
+        send(Rcsp.setAdvInfo, params)
     }
 
     // MARK: Frames
@@ -84,6 +93,11 @@ final class JieliSession {
             onAdvInfo?(JieliCodec.decodeAdvInfo(frame.body))
         case (true, Rcsp.advChanged):
             readBattery() // the status beacon changed; battery is the part we show
+        case (false, Rcsp.setAdvInfo):
+            // [result]: 0 = accepted. The read-back that follows each change confirms it.
+            if let result = frame.body.first, result != 0 {
+                Log.info("The earbuds refused a setting (result \(result))")
+            }
         default:
             break
         }

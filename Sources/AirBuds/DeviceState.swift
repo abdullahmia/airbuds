@@ -17,6 +17,7 @@ struct EqState: Equatable {
 struct DeviceState: Equatable {
     var connected = false
     var name: String?
+    var namePending = false
     var address: String?
     var battery = Battery()
     var noiseMode: NoiseMode?

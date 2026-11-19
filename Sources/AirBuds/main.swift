@@ -1,6 +1,7 @@
 // AirBuds: control Hoco earbuds from the menu bar.
 // A status item opens a popover with the SwiftUI panel; right-click shows the app
-// menu. Also handles the ⌃⌥N shortcut, airbuds:// links and per-app automations.
+// menu. Also handles the ⌃⌥N shortcut, airbuds:// links, per-app automations
+// and Sparkle updates.
 
 import AppKit
 import Combine
@@ -19,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var commands: CommandRunner?
     private var automation: AutomationController?
     private var hotKey: HotKey?
+    private let updater = Updater()
     private var statusItem: NSStatusItem!
     private let popover = NSPopover()
     private var cancellables = Set<AnyCancellable>()
@@ -225,6 +227,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         menu.addItem(automations)
 
         menu.addItem(.separator())
+        let update = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
+        update.target = self
+        update.isEnabled = updater.canCheck
+        update.isHidden = !updater.isAvailable
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        update.toolTip = "\(Self.appName) \(version)"
+        menu.addItem(update)
+
         let quit = NSMenuItem(title: "Quit \(Self.appName)", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
 
@@ -256,6 +266,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     @objc private func showAutomations() {
         automationsWindow.show()
+    }
+
+    @objc private func checkForUpdates() {
+        updater.checkForUpdates()
     }
 
     @objc private func setMenuBarBattery(_ sender: NSMenuItem) {

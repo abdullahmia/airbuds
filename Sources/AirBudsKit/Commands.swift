@@ -7,6 +7,8 @@
 //   airbuds://noise/next           cycle to the next mode
 //   airbuds://eq/rock              EQ preset by name or number (0 = Normal)
 //   airbuds://low-latency/on       on, off or toggle
+//   airbuds://connect              connect paired earbuds that aren't connected
+//   airbuds://disconnect           disconnect the earbuds
 //   airbuds://open                 open the panel
 
 import Foundation
@@ -18,6 +20,8 @@ public enum AirBudsCommand: Equatable {
     case eq(String)
     /// nil toggles.
     case lowLatency(Bool?)
+    case connect
+    case disconnect
     case open
 
     public static let scheme = "airbuds"
@@ -29,6 +33,10 @@ public enum AirBudsCommand: Equatable {
         switch (host, argument) {
         case ("open", _):
             self = .open
+        case ("connect", _):
+            self = .connect
+        case ("disconnect", _):
+            self = .disconnect
         case ("noise", "anc"), ("noise", "nc"), ("noise", "noise-cancellation"), ("noise", "on"):
             self = .noise(.anc)
         case ("noise", "transparency"):

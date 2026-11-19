@@ -16,6 +16,7 @@ extension EarbudsController {
         s.capabilities.noiseControl = true
         s.capabilities.transparency = true
         s.capabilities.lowLatency = true
+        s.capabilities.rename = true
         s.capabilities.eqPresets = JieliCodec.eqPresets
         s.battery.left = BatteryLevel(level: 85, charging: false)
         s.battery.right = BatteryLevel(level: 18, charging: false)
@@ -67,6 +68,7 @@ enum DebugSnapshots {
             device.setSampleState(state)
         }
         let offline = EarbudsController()
+        offline.setSamplePaired([PairedEarbuds(name: "HOCO EQ34 Plus ANC", address: "aa-bb-cc-dd-ee-ff", connected: false)])
         let settings = AppSettings()
         let store = BatteryHistoryStore(controller: device, live: false)
         store.setSample(history)

@@ -66,7 +66,9 @@ Sources/AirBudsKit/
   Commands.swift           airbuds:// link parsing
 Sources/AirBuds/
   main.swift               App entry, status item, popover, right-click menu, link handling
-  JieliTransport.swift     Finds the BLE side of the connected buds, connects, runs the handshake, relays bytes
+  JieliTransport.swift     Finds the BLE side of the connected buds, connects, runs the handshake, relays bytes;
+                           lists paired earbuds and remembers known ones
+  ClassicConnection.swift  Connects and disconnects paired earbuds for audio (IOBluetooth)
   JieliSession.swift       Encodes reads and settings, decodes replies and pushed updates
   EarbudsController.swift  All device state and every setter
   ConfirmedSetting.swift   "Wait until the buds confirm" helper plus timer utilities
@@ -78,6 +80,7 @@ Sources/AirBuds/
   AutomationController.swift Watches apps launching and quitting and applies automation rules
   HotKey.swift             System-wide shortcut through Carbon's RegisterEventHotKey
   ModeHUD.swift            The on-screen indicator under the menu bar icon
+  Updater.swift            Sparkle auto-update and "Check for Updates…"
   MenuBarIcon.swift        The menu bar icon (SF "earbuds" symbol), with the noise mode beside it
   Log.swift                Console logging; AIRBUDS_DEBUG=1 logs every packet
   DebugSnapshots.swift     Debug only: renders every page to PNG (used for docs/screenshots)
@@ -88,9 +91,18 @@ Sources/AirBuds/
 ## How a connection comes up
 
 Hoco earbuds play audio over classic Bluetooth, but take control commands over
-BLE. Every 3 seconds `JieliTransport` checks for a paired classic device that is
-connected and has "hoco" in its name. Only then does it scan BLE, so the app
-never scans otherwise.
+BLE. Every 3 seconds, and right away on an IOBluetooth connect notification,
+`JieliTransport` checks for a supported paired classic device that is
+connected. Only then does it scan BLE, so the app never scans otherwise.
+
+A device is supported if its name contains "hoco" or it passed the handshake
+before (`KnownEarbuds`, by address, in UserDefaults), so renamed earbuds are
+still found. It counts as connected if `IOBluetoothDevice.isConnected()` says
+so or a connect notification arrived with no disconnect notification since.
+The notifications matter: in a long-running process `isConnected()` can stay
+`false` after a reconnect, which left the panel stuck on "Not connected" after
+Disconnect and Connect. When the classic connection goes away, the transport
+drops the BLE link too.
 
 ```mermaid
 sequenceDiagram
@@ -120,6 +132,12 @@ sequenceDiagram
 Firmware comes from the classic device's Device ID (PnP) SDP record. If a
 connection or handshake fails 3 times, the transport stops trying for that
 device until it reconnects for audio.
+
+**Connect and Disconnect** in the panel go through `ClassicConnection`:
+`IOBluetoothDevice.openConnection(_:)` (asynchronous, reports to
+`connectionComplete(_:status:)`) and `closeConnection()`, like the buttons in
+System Settings. Disconnect closes the BLE link first. After a connect, the
+normal flow above opens the control link.
 
 ## Capabilities come from the earbuds
 
@@ -234,11 +252,31 @@ flowchart LR
     WF --> Checks["swift run AirBudsKitChecks"]
     Checks --> Build["scripts/build-app.sh --universal<br/>VERSION=1.2.3"]
     Build --> Pack["scripts/make-dmg.sh 1.2.3<br/>DMG + zip + SHA256SUMS"]
-    Pack --> Rel["gh release create v1.2.3"]
+    Pack --> Feed["scripts/make-appcast.sh 1.2.3 BUILD<br/>appcast.xml, EdDSA-signed"]
+    Feed --> Rel["gh release create v1.2.3"]
 ```
 
 `build-app.sh` runs `swift build -c release`, assembles the `.app` (binary,
-Info.plist, icon) and ad-hoc signs it. Info.plist is also linked into the
+Info.plist, icon, and `Sparkle.framework` in `Contents/Frameworks`) and ad-hoc
+signs it. Sparkle keeps the Sparkle project's own signature; the binary finds
+it through an `@executable_path/../Frameworks` rpath set in `Package.swift`. Info.plist is also linked into the
 executable's `__TEXT,__info_plist` section, so a bare `swift run` (or Run in
 Xcode) has the Bluetooth usage string too. Without it, macOS terminates the
 process on first Bluetooth access.
+
+## Updates
+
+Sparkle 2 (Swift package, prebuilt framework) checks
+`https://github.com/abdullahmia/airbuds/releases/latest/download/appcast.xml`
+daily and from **Check for Updates…**. `release.yml` writes that feed with
+`scripts/make-appcast.sh`: one item pointing at the release's zip, with the
+build number (`CFBundleVersion`, the workflow's run number) Sparkle compares
+and an EdDSA signature from the `SPARKLE_PRIVATE_KEY` secret. Installed copies
+check it against `SUPublicEDKey` in Info.plist. That signature is what makes
+updates safe without a Developer ID. Sparkle also clears the quarantine flag on
+what it installs, so updated copies open without the Gatekeeper prompt.
+
+Tested end to end with a local feed: an installed 0.1.0 downloaded 0.9.0,
+verified it, and replaced itself on quit, still validly signed and not
+quarantined. `Updater` only starts inside an app bundle with a feed URL and
+public key, so `swift run` doesn't try to update.

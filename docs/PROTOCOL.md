@@ -62,7 +62,7 @@ command with flags `C0`.
 | `07` | Get sys info | `FF` + attribute mask (u32 BE) | `FF` + attributes |
 | `08` | Set sys info | `FF` + attributes | status |
 | `09` | Sys info changed | (from the earbuds) | `FF` + attributes |
-| `C0` | Set ADV info | attributes | status |
+| `C0` | Set ADV info | attributes | status, then `[result]` (`0` = accepted) |
 | `C1` | Get ADV info | attribute mask (u32 BE) | attributes |
 | `C2` | Status beacon | (from the earbuds) | the app re-reads the battery |
 
@@ -90,7 +90,7 @@ these. To pick a preset, send `[id, its gains]` as attribute `04`.
 | Type | Meaning | Data |
 | --- | --- | --- |
 | `00` | Battery | `[left, right, case]`: level, `| 0x80` while charging, `0` = not available |
-| `01` | Name | UTF-8 |
+| `01` | Name | UTF-8, up to 20 bytes. Settable with `C0`; other devices see it after the earbuds restart |
 | `05` | Work mode | `1` normal, `2` game mode (Low Latency) |
 
 ## Example
@@ -101,6 +101,15 @@ Switch to Transparency, then read it back:
 -> fe dc ba c0 08 00 0d 03  ff 0a 0d 02 40 00 40 00 39 96 39 96  ef
 <- fe dc ba 00 08 00 02 00 03 ef                                       OK
 <- fe dc ba 80 09 00 0d 04  ff 0a 0d 02 40 00 40 00 39 96 39 96  ef    pushed update
+```
+
+Rename, then read the name back (bytes from a HOCO EQ34 Plus ANC):
+
+```
+-> fe dc ba c0 c0 00 15 04  13 01 48 4f 43 4f 20 45 51 33 34 20 50 6c 75 73 20 41 4e 43  ef
+<- fe dc ba 00 c0 00 03 00 04 00 ef                                    OK, result 0
+-> fe dc ba c0 c1 00 05 05  00 00 00 02  ef                            get ADV info: name
+<- fe dc ba 00 c1 00 16 00 05  13 01 48 4f 43 4f …  ef                 "HOCO EQ34 Plus ANC"
 ```
 
 ## Debugging
