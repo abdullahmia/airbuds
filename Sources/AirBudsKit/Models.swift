@@ -52,7 +52,11 @@ public struct Capabilities: Equatable {
     public var lowLatency = false
     /// The earbuds report their name, so they can be renamed.
     public var rename = false
+    /// The earbuds report gesture settings (ADV attribute 02).
+    public var touchControls = false
     public var eqPresets: [EqPreset] = []
+    /// Band frequencies (Hz) for custom EQ; empty when there's no Custom slot.
+    public var eqBands: [Int] = []
 
     public init() {}
 }

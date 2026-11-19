@@ -38,7 +38,8 @@ telemetry.
 - **Low battery alerts** at 20% and again at 10%, without repeats, and **fully charged** alerts
 - **Noise control**: Noise Cancellation, Transparency or Off, with the current mode shown in the menu bar
 - **Keyboard shortcut**: ⌃⌥N switches the noise mode from any app
-- **EQ presets**: Normal, Rock, Pop, Classical, Jazz and Country
+- **EQ presets**: Normal, Rock, Pop, Classical, Jazz and Country, plus a **10-band Custom EQ**
+- **Touch controls**: choose what single, double and triple tap do on each bud
 - **Low Latency** (game mode)
 - **Automations**: switch noise control, EQ or Low Latency while particular apps are open
 - **`airbuds://` links** for the Shortcuts app, scripts and Terminal
@@ -90,7 +91,8 @@ off from the right-click menu.
 | --- | --- |
 | <img src="docs/screenshots/main-light.png" width="300" alt="Main panel"> | **Main panel**<br>Battery for each bud and the case (shown when the earbuds report it), and how long until the first bud runs out. Click a noise mode to switch.<br><br>Buttons at the top right: **Equalizer**, **Quick Settings** and **Quit**. |
 | <img src="docs/screenshots/battery-light.png" width="300" alt="Battery page with a chart of this session"> | **Battery**<br>Click the battery row. The chart shows each bud's level since you started listening; hover it for the exact reading. Below it, time left for each bud. |
-| <img src="docs/screenshots/eq-light.png" width="300" alt="Equalizer"> | **Equalizer**<br>Click a preset to apply it. |
+| <img src="docs/screenshots/eq-custom-light.png" width="300" alt="Equalizer with Custom selected and ten band sliders"> | **Equalizer**<br>Click a preset to apply it, or **Custom** to shape the sound yourself: drag each of the 10 bands (31 Hz to 16 kHz) up or down by up to 8 dB. |
+| <img src="docs/screenshots/touch-light.png" width="300" alt="Touch Controls"> | **Touch Controls**<br>From Quick Settings. Pick what single, double and triple tap do on each bud: play/pause, next or previous track, volume, calls, or switching the noise mode. Saved on the earbuds. |
 | <img src="docs/screenshots/quick-light.png" width="300" alt="Quick Settings"> | **Quick Settings**<br>Turn **Low Latency** on or off, open **Automations**, **Disconnect** the earbuds, and see the firmware version and Bluetooth address. Click the pencil next to the name to **rename** them. |
 | <img src="docs/screenshots/disconnected-light.png" width="300" alt="Not connected, with paired earbuds and a Connect button"> | **Not connected**<br>Your paired Hoco earbuds are listed. Click one to **connect** it to this Mac. |
 
@@ -184,7 +186,14 @@ AIRBUDS_DEBUG=1 swift run AirBuds                     # log every packet to and 
 AIRBUDS_OPEN=1 swift run AirBuds                      # open the panel on launch
 AIRBUDS_SNAPSHOT=docs/screenshots swift run AirBuds   # regenerate the screenshots (debug builds)
 AIRBUDS_FAKE_LOW_BATTERY=1 swift run AirBuds          # fake low battery to test alerts (debug builds, inside an .app)
+AIRBUDS_DEBUG=1 AIRBUDS_SEND="c1 ffffffff; 07 ff ffffffff" swift run AirBuds
+                                                      # send raw RCSP commands after connecting (debug builds)
 ```
+
+`AIRBUDS_SEND` is for reverse engineering: each `;`-separated command is an
+opcode followed by its parameters in hex, sent a second apart. With
+`AIRBUDS_DEBUG=1` every reply and push is printed decoded. Prefer reads (`07`,
+`c1`); see [PROTOCOL.md](docs/PROTOCOL.md) before sending anything that writes.
 
 ### Releasing
 

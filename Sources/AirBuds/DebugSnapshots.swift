@@ -17,6 +17,14 @@ extension EarbudsController {
         s.capabilities.transparency = true
         s.capabilities.lowLatency = true
         s.capabilities.rename = true
+        s.capabilities.touchControls = true
+        s.capabilities.eqBands = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+        s.eq.customGains = [4, 3, 1, 0, -1, 0, 1, 2, 3, 2]
+        for bud in Bud.allCases {
+            for (gesture, function) in [(1, 5), (2, 4), (3, 3)] {
+                s.touchControls.append(TouchControl(bud: bud, gesture: gesture, function: function))
+            }
+        }
         s.capabilities.eqPresets = JieliCodec.eqPresets
         s.battery.left = BatteryLevel(level: 85, charging: false)
         s.battery.right = BatteryLevel(level: 18, charging: false)
@@ -74,7 +82,10 @@ enum DebugSnapshots {
         store.setSample(history)
         let pages: [(String, PanelPage)] = [
             ("main", .main), ("quick", .quickSettings), ("eq", .equalizer), ("battery", .battery),
+            ("touch", .touchControls),
         ]
+        let custom = EarbudsController()
+        custom.setSampleState({ var c = device.state; c.eq.preset = CustomEq.id; return c }())
 
         func panel(_ page: PanelPage, _ controller: EarbudsController) -> some View {
             let nav = PanelNavigation()
@@ -107,6 +118,8 @@ enum DebugSnapshots {
             }
             render(panel(.main, offline).background(Color(nsColor: .windowBackgroundColor)),
                    dark: dark, to: "\(dir)/disconnected-\(suffix).png")
+            render(panel(.equalizer, custom).background(Color(nsColor: .windowBackgroundColor)),
+                   dark: dark, to: "\(dir)/eq-custom-\(suffix).png")
             render(automations.background(Color(nsColor: .windowBackgroundColor)),
                    dark: dark, to: "\(dir)/automations-\(suffix).png")
             let hud = Local(HUDMessage(symbol: NoiseMode.transparency.symbol, title: "Transparency", detail: "Noise Control"))

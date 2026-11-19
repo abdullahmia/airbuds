@@ -129,6 +129,8 @@ public enum Rcsp {
     public static let getAdvInfo: UInt8 = 0xC1
     /// Pushed by the earbuds with their status beacon (battery among it).
     public static let advChanged: UInt8 = 0xC2
+    /// The earbuds ask the app to do something, e.g. 03 = reconnect.
+    public static let advRequest: UInt8 = 0xC4
 
     static let header: [UInt8] = [0xFE, 0xDC, 0xBA]
     static let trailer: UInt8 = 0xEF
@@ -211,6 +213,8 @@ public struct JieliSysInfo: Equatable {
     public var eqPreset: Int?
     /// Preset id -> band gains (signed dB, one byte per band).
     public var eqGains: [Int: [UInt8]] = [:]
+    /// Band centre frequencies in Hz, from the preset table.
+    public var eqFrequencies: [Int] = []
     public init() {}
 }
 
@@ -219,6 +223,8 @@ public struct JieliAdvInfo: Equatable {
     public var battery: Battery?
     public var name: String?
     public var lowLatency: Bool?
+    /// What each gesture does; nil when not included.
+    public var touchControls: [TouchControl]?
     public init() {}
 }
 
@@ -232,6 +238,7 @@ public enum JieliCodec {
     // ADV info attribute types.
     static let advBattery: UInt8 = 0x00
     static let advName: UInt8 = 0x01
+    static let advKeySettings: UInt8 = 0x02
     static let advWorkMode: UInt8 = 0x05
 
     static let noiseWire: [UInt8: NoiseMode] = [0: .off, 1: .anc, 2: .transparency]
@@ -299,7 +306,13 @@ public enum JieliCodec {
                 info.eqPreset = data.first.map(Int.init)
             case attrEqPresets:
                 // [bands, frequency (u16) × bands, then (id, gain × bands) per preset]
-                guard let bands = data.first.map(Int.init), bands > 0 else { continue }
+                guard let bands = data.first.map(Int.init), bands > 0, data.count >= 1 + bands * 2 else { continue }
+                var frequencies: [Int] = []
+                for band in 0..<bands {
+                    let high: Int = Int(data[1 + band * 2]) << 8
+                    frequencies.append(high | Int(data[2 + band * 2]))
+                }
+                info.eqFrequencies = frequencies
                 var i = 1 + bands * 2
                 while i + 1 + bands <= data.count {
                     info.eqGains[Int(data[i])] = Array(data[(i + 1)...(i + bands)])
@@ -333,6 +346,16 @@ public enum JieliCodec {
         return [publicFunction] + attribute(attrNoiseMode, data)
     }
 
+    /// Custom EQ (mode 6) with one gain per band, clamped to ±8 dB.
+    public static func encodeSetCustomEq(gains: [Int]) -> [UInt8] {
+        var data: [UInt8] = [UInt8(CustomEq.id)]
+        for gain in gains {
+            let clamped: Int = min(max(gain, CustomEq.range.lowerBound), CustomEq.range.upperBound)
+            data.append(UInt8(bitPattern: Int8(clamped)))
+        }
+        return [publicFunction] + attribute(attrEq, data)
+    }
+
     /// gains: from JieliSysInfo.eqGains (10 bands); without them, flat.
     public static func encodeSetEqPreset(_ id: Int, gains: [UInt8]?) -> [UInt8] {
         var data: [UInt8] = [UInt8(id)]
@@ -342,7 +365,13 @@ public enum JieliCodec {
 
     // MARK: ADV info
 
-    public static func encodeGetAdvInfo() -> [UInt8] { mask([advBattery, advName, advWorkMode]) }
+    public static func encodeGetAdvInfo() -> [UInt8] { mask([advBattery, advName, advKeySettings, advWorkMode]) }
+    public static func encodeGetTouchControls() -> [UInt8] { mask([advKeySettings]) }
+
+    /// Changes one gesture (the way Jieli's app does it: one entry per command).
+    public static func encodeSetTouchControl(_ control: TouchControl) -> [UInt8] {
+        attribute(advKeySettings, [UInt8(control.bud.rawValue), UInt8(control.gesture), UInt8(control.function & 0xFF)])
+    }
     public static func encodeGetBattery() -> [UInt8] { mask([advBattery]) }
     public static func encodeGetLowLatency() -> [UInt8] { mask([advWorkMode]) }
     public static func encodeGetName() -> [UInt8] { mask([advName]) }
@@ -380,6 +409,17 @@ public enum JieliCodec {
                 info.battery = battery
             case advName:
                 info.name = String(decoding: data, as: UTF8.self)
+            case advKeySettings:
+                // [bud, gesture, function] per entry
+                var controls: [TouchControl] = []
+                var i = 0
+                while i + 3 <= data.count {
+                    if let bud = Bud(rawValue: Int(data[i])) {
+                        controls.append(TouchControl(bud: bud, gesture: Int(data[i + 1]), function: Int(data[i + 2])))
+                    }
+                    i += 3
+                }
+                info.touchControls = controls
             case advWorkMode:
                 info.lowLatency = data.first == gameMode
             default:
@@ -406,11 +446,16 @@ extension Capabilities {
         if info.eqPreset != nil && eqPresets.isEmpty {
             eqPresets = JieliCodec.eqPresets
         }
+        // A table with a Custom slot means custom gains are possible.
+        if info.eqGains[CustomEq.id] != nil && !info.eqFrequencies.isEmpty {
+            eqBands = info.eqFrequencies
+        }
     }
 
     public mutating func learn(from info: JieliAdvInfo) {
         if info.lowLatency != nil { lowLatency = true }
         if info.name != nil { rename = true }
+        if let controls = info.touchControls, !controls.isEmpty { touchControls = true }
     }
 
     /// Product names that get the Jieli connection.

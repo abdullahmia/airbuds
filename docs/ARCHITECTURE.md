@@ -64,6 +64,7 @@ Sources/AirBudsKit/
   BatteryHistory.swift     Battery samples, sessions and the time-left estimate
   Automation.swift         Per-app rules and the engine that applies and restores them
   Commands.swift           airbuds:// link parsing
+  Controls.swift           Touch controls and custom EQ values (from Jieli's SDK)
 Sources/AirBuds/
   main.swift               App entry, status item, popover, right-click menu, link handling
   JieliTransport.swift     Finds the BLE side of the connected buds, connects, runs the handshake, relays bytes;
@@ -84,8 +85,9 @@ Sources/AirBuds/
   MenuBarIcon.swift        The menu bar icon (SF "earbuds" symbol), with the noise mode beside it
   Log.swift                Console logging; AIRBUDS_DEBUG=1 logs every packet
   DebugSnapshots.swift     Debug only: renders every page to PNG (used for docs/screenshots)
-  Views/                   One file per panel page (Main, Battery, Equalizer, Quick Settings),
-                           shared components, and the Automations window
+  Views/                   One file per panel page (Main, Battery, Equalizer with Custom EQ,
+                           Quick Settings, Touch Controls), shared
+                           components, and the Automations window
 ```
 
 ## How a connection comes up
@@ -280,3 +282,16 @@ Tested end to end with a local feed: an installed 0.1.0 downloaded 0.9.0,
 verified it, and replaced itself on quit, still validly signed and not
 quarantined. `Updater` only starts inside an app bundle with a feed URL and
 public key, so `swift run` doesn't try to update.
+
+## Touch controls and custom EQ
+
+- **Touch controls** are read with the other ADV info (attribute `02`). A change
+  sends one `[bud, gesture, function]` entry and is confirmed like other
+  settings: `ConfirmedSetting` waits for a report that contains the new entry.
+- **Custom EQ** gains live in `EqState.customGains`, saved per earbuds address
+  in UserDefaults and seeded from the earbuds' Custom slot. Slider moves update
+  the state at once and are sent 120 ms after the last move. If the earbuds
+  report Custom on connect, the saved gains are sent again, because the
+  earbuds don't report (and may not keep) them.
+- Debug builds take `AIRBUDS_SEND` to send raw commands after connecting; that,
+  plus Jieli's published SDK and app source, is how these were worked out.

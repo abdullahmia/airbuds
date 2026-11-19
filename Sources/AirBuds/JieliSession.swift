@@ -27,6 +27,9 @@ final class JieliSession {
             noiseEntries = [:]
             eqGains = [:]
             onConnected?(name, address, Self.firmware(address: address))
+            #if DEBUG
+            sendDebugCommands()
+            #endif
         }
         transport.onData = { [unowned self] bytes in
             for frame in parser.push(bytes) { handle(frame) }
@@ -51,6 +54,7 @@ final class JieliSession {
     func readEq() { send(Rcsp.getSysInfo, JieliCodec.encodeGetEq()) }
     func readLowLatency() { send(Rcsp.getAdvInfo, JieliCodec.encodeGetLowLatency()) }
     func readName() { send(Rcsp.getAdvInfo, JieliCodec.encodeGetName()) }
+    func readTouchControls() { send(Rcsp.getAdvInfo, JieliCodec.encodeGetTouchControls()) }
 
     // MARK: Settings
 
@@ -66,6 +70,14 @@ final class JieliSession {
         send(Rcsp.setAdvInfo, JieliCodec.encodeSetLowLatency(on))
     }
 
+    func setTouchControl(_ control: TouchControl) {
+        send(Rcsp.setAdvInfo, JieliCodec.encodeSetTouchControl(control))
+    }
+
+    func setCustomEq(gains: [Int]) {
+        send(Rcsp.setSysInfo, JieliCodec.encodeSetCustomEq(gains: gains))
+    }
+
     func setName(_ name: String) {
         guard let params = JieliCodec.encodeSetName(name) else { return }
         send(Rcsp.setAdvInfo, params)
@@ -79,6 +91,9 @@ final class JieliSession {
     }
 
     private func handle(_ frame: RcspFrame) {
+        Log.trace(String(format: "RCSP %@ 0x%02X", frame.isCommand ? "push" : "reply", frame.opcode)
+                  + (frame.status.map { " status \($0)" } ?? "")
+                  + " body " + frame.body.map { String(format: "%02x", $0) }.joined(separator: " "))
         if let status = frame.status, status != 0 {
             Log.info(String(format: "RCSP 0x%02X failed with status %d", frame.opcode, status))
             return
@@ -93,6 +108,9 @@ final class JieliSession {
             onAdvInfo?(JieliCodec.decodeAdvInfo(frame.body))
         case (true, Rcsp.advChanged):
             readBattery() // the status beacon changed; battery is the part we show
+        case (true, Rcsp.advRequest):
+            // e.g. 03: "reconnect". Seen after some settings changes; nothing to do here.
+            Log.trace("The earbuds requested operation \(frame.body.first ?? 0)")
         case (false, Rcsp.setAdvInfo):
             // [result]: 0 = accepted. The read-back that follows each change confirms it.
             if let result = frame.body.first, result != 0 {
@@ -102,6 +120,28 @@ final class JieliSession {
             break
         }
     }
+
+    #if DEBUG
+    /// For reverse engineering: `AIRBUDS_SEND="c1 ffffffff; 07 ff ffffffff"` sends
+    /// each raw command (opcode, then parameters, in hex) a second apart after
+    /// connecting. Run with AIRBUDS_DEBUG=1 to see the replies.
+    private func sendDebugCommands() {
+        guard let script = ProcessInfo.processInfo.environment["AIRBUDS_SEND"] else { return }
+        let commands: [[UInt8]] = script.split(separator: ";").map { command in
+            let digits = command.filter { $0.isHexDigit }
+            return stride(from: 0, to: digits.count - 1, by: 2).compactMap { i -> UInt8? in
+                let start = digits.index(digits.startIndex, offsetBy: i)
+                return UInt8(digits[start...digits.index(after: start)], radix: 16)
+            }
+        }
+        for (i, bytes) in commands.enumerated() where !bytes.isEmpty {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2 + Double(i)) { [weak self] in
+                Log.info("AIRBUDS_SEND " + bytes.map { String(format: "%02x", $0) }.joined(separator: " "))
+                self?.send(bytes[0], Array(bytes.dropFirst()))
+            }
+        }
+    }
+    #endif
 
     /// Firmware version from the classic device's PnP (Device ID) record: 0xJJMN -> "J.M.N".
     private static func firmware(address: String) -> String? {

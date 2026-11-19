@@ -1,5 +1,5 @@
-// Quick Settings page: a Low Latency tile, Automations, Disconnect, and device
-// info with the earbuds' name, which can be changed here.
+// Quick Settings page: a Low Latency tile, Automations, Touch Controls,
+// Disconnect, and device info with the earbuds' name (editable here).
 
 import AirBudsKit
 import SwiftUI
@@ -31,6 +31,12 @@ struct QuickSettingsView: View {
             .buttonStyle(HoverRowStyle())
             .help("Change settings automatically while particular apps are open")
 
+            if state.capabilities.touchControls {
+                row("hand.tap", "Touch Controls…", help: "Choose what tapping each earbud does") {
+                    nav.page = .touchControls
+                }
+            }
+
             Button { device.disconnect() } label: {
                 HStack(spacing: 10) {
                     IconBadge(symbol: "xmark")
@@ -43,6 +49,19 @@ struct QuickSettingsView: View {
 
             DeviceInfo()
         }
+    }
+
+    private func row(_ symbol: String, _ title: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                IconBadge(symbol: symbol)
+                Text(title).font(.system(size: 13))
+                Spacer()
+                Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(.tertiary)
+            }
+        }
+        .buttonStyle(HoverRowStyle())
+        .help(help)
     }
 
     private var lowLatencyTile: some View {

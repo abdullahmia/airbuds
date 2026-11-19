@@ -228,6 +228,31 @@ check(JieliCodec.encodeSetName(String(repeating: "a", count: 20)) != nil
       && JieliCodec.encodeSetName(String(repeating: "a", count: 21)) == nil, "name up to 20 bytes")
 check(JieliCodec.encodeSetName("Ünïcødé Buds 🎧") == nil, "multi-byte characters count as bytes: 21 > 20")
 
+// Touch controls and custom EQ: bytes from a HOCO EQ34 Plus ANC.
+let keys = JieliCodec.decodeAdvInfo(bytes("13 02 01 01 05 02 01 05 01 02 04 02 02 04 01 03 03 02 03 03")).touchControls
+check(keys?.count == 6, "six gestures reported")
+check(keys?.first == TouchControl(bud: .left, gesture: 1, function: 5), "left single tap: play/pause")
+check(keys?.contains(TouchControl(bud: .right, gesture: 3, function: 3)) == true, "right triple tap: previous track")
+check(TouchFunction.label(for: 4) == "Next Track" && TouchFunction.label(for: 42) == "Other (42)", "function labels")
+check(JieliCodec.encodeSetTouchControl(TouchControl(bud: .left, gesture: 1, function: 5)) == bytes("04 02 01 01 05"),
+      "set one gesture (accepted by the earbuds, result 0)")
+check(JieliCodec.encodeSetTouchControl(TouchControl(bud: .right, gesture: 2, function: 255)) == bytes("04 02 02 02 ff"),
+      "switch noise mode is function 255")
+check(JieliCodec.encodeGetTouchControls() == bytes("00 00 00 04"), "touch controls mask")
+check(JieliCodec.encodeGetAdvInfo() == bytes("00 00 00 27"), "adv read includes touch controls")
+
+let table = JieliCodec.decodeSysInfo(bytes("""
+    ff 2c 0c 0a 00 1f 00 3e 00 7d 00 fa 01 f4 03 e8 07 d0 0f a0 1f 40 3e 80 \
+    00 00 00 00 00 00 00 00 00 00 00 06 00 00 00 04 04 04 00 02 03 04
+    """))
+check(table.eqFrequencies == [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000], "eq band frequencies")
+check(table.eqGains[6] == bytes("00 00 00 04 04 04 00 02 03 04"), "stored custom slot")
+check(JieliCodec.encodeSetCustomEq(gains: [1, 0, 0, 4, 4, 4, 0, 2, 3, 4])
+      == bytes("ff 0c 04 06 01 00 00 04 04 04 00 02 03 04"), "custom eq (accepted by the earbuds)")
+check(JieliCodec.encodeSetCustomEq(gains: [-8, -9, 9, 0, 0, 0, 0, 0, 0, 0])
+      == bytes("ff 0c 04 06 f8 f8 08 00 00 00 00 00 00 00"), "custom gains clamp to ±8 dB")
+check(CustomEq.label(hertz: 125) == "125" && CustomEq.label(hertz: 16000) == "16k", "band labels")
+
 var hoco = Capabilities()
 check(!hoco.noiseControl && !hoco.lowLatency && hoco.eqPresets.isEmpty, "nothing shown before the earbuds report")
 hoco.learn(from: sys)
@@ -235,6 +260,10 @@ hoco.learn(from: adv ?? JieliAdvInfo())
 check(hoco.noiseControl && hoco.transparency, "hoco noise control learned")
 check(hoco.lowLatency && hoco.eqPresets.count == 6, "hoco low latency and presets learned")
 check(hoco.rename, "rename offered once the earbuds report their name")
+check(hoco.touchControls, "touch controls learned from the adv capture")
+check(hoco.eqBands.isEmpty, "no custom eq without a table that has a custom slot")
+hoco.learn(from: table)
+check(hoco.eqBands.count == 10, "custom eq offered with a 10-band table")
 check(Capabilities.isJieli(deviceName: "HOCO EQ34 Plus ANC") && !Capabilities.isJieli(deviceName: "AirPods Pro"),
       "jieli name match")
 

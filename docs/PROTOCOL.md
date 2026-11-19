@@ -65,6 +65,14 @@ command with flags `C0`.
 | `C0` | Set ADV info | attributes | status, then `[result]` (`0` = accepted) |
 | `C1` | Get ADV info | attribute mask (u32 BE) | attributes |
 | `C2` | Status beacon | (from the earbuds) | the app re-reads the battery |
+| `C4` | Request | (from the earbuds) | `[op]`: `0` update config, `1` update after reboot, `2` sync time, `3` reconnect, `4` sync device info |
+| `19` | Find device (not used by the app) | `[1, on, seconds (u16 BE), bud, 1]` | status; the earbuds push `19 00 …` when the tone stops |
+| `03` | Target info | mask (u32 BE) + `00` | attributes, e.g. `0c` = SDK name (`jl_sdk_ac697_publish` on the EQ34) |
+
+The constants below come from Jieli's own app and SDK
+([Android-JL_Bluetooth](https://github.com/Jieli-Tech/Android-JL_Bluetooth):
+`AttrAndFunCode`, `Constants`, `SearchDevParam`, and the AC697x headset
+configuration in the app's assets), checked against a HOCO EQ34 Plus ANC.
 
 **Attributes** are `[length, type, data…]` repeated, where `length` counts the
 type byte plus the data. **Masks** set bit `n` for attribute type `n`.
@@ -77,6 +85,13 @@ type byte plus the data. **Masks** set bit `n` for attribute type `n`.
 | `0C` | EQ presets | `[bands, freq u16 BE × bands, then (id, gain × bands) per preset]` |
 | `0D` | Noise mode | `[mode, left max, right max, left gain, right gain]` (u16 each) |
 | `0E` | Noise modes on offer | `[count, entry × count]`, entries as in `0D` |
+
+The preset table (`0C`) on the EQ34 has 10 bands at 31, 62, 125, 250, 500 Hz,
+1, 2, 4, 8 and 16 kHz and 10 slots (ids 0–9). **Custom EQ** is mode `6`: send
+`[6, gain × 10]` as attribute `04`, gains in whole dB from −8 to +8 (signed
+bytes). The earbuds switch to mode 6 and accept it, but the EQ report always
+carries zero gains and the table's slot 6 doesn't change, so the app keeps the
+custom gains itself (as Jieli's app does) and re-sends them when Custom is on.
 
 Noise mode `0` = Off, `1` = Noise Cancellation, `2` = Transparency. To switch
 modes, send the mode's entry from `0E` as attribute `0D`.
@@ -91,7 +106,23 @@ these. To pick a preset, send `[id, its gains]` as attribute `04`.
 | --- | --- | --- |
 | `00` | Battery | `[left, right, case]`: level, `| 0x80` while charging, `0` = not available |
 | `01` | Name | UTF-8, up to 20 bytes. Settable with `C0`; other devices see it after the earbuds restart |
+| `02` | Touch controls | `[bud, gesture, function]` per entry. Set one entry at a time with `C0` (result `0`) |
 | `05` | Work mode | `1` normal, `2` game mode (Low Latency) |
+| `06` | Product message | e.g. `05 d6 80 c0 e0 0d` |
+| `08` | In-ear detection | not reported by the EQ34 (no wear sensor) |
+| `0A` | Noise modes the "switch noise mode" gesture cycles | u32 bitmask: `1` Off, `2` ANC, `4` Transparency; `7` on the EQ34 |
+
+**Touch controls:** bud `1` left, `2` right. Gesture `1` single tap, `2` double
+tap, `3` triple tap (the EQ34 reports this third one; Jieli's config doesn't
+name it, a tap test does). Functions: `0` none, `3` previous track, `4` next
+track, `5` play/pause, `6` answer call, `7` hang up, `8` call back, `9` volume
+up, `10` volume down, `255` switch noise mode. The EQ34 ships with single tap =
+play/pause, double = next, triple = previous on both buds.
+
+**Find device** (documented, not used by AirBuds): bud `0` both, `1` left, `2` right. `19 01 01 00 3c 00 01`
+plays the tone on both buds for 60 s; `19 01 00 00 00 00 01` stops it. The
+earbuds raise their volume for the tone (a `09` push) and push `19 00 00 00 00`
+when it stops. Verified on the EQ34: the left bud alone played.
 
 ## Example
 

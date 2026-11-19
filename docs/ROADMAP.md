@@ -31,18 +31,19 @@ All three shipped. See the README for how to use them.
 | 8 | ✅ **Auto-update with Sparkle** | Daily checks and Check for Updates…; releases publish an EdDSA-signed `appcast.xml`. Needs the `SPARKLE_PRIVATE_KEY` repository secret (see README → Releasing). |
 | 9 | ✅ **Connect / disconnect button** | Paired earbuds with a Connect button when none are connected, Disconnect in Quick Settings, and `airbuds://connect` / `disconnect`. |
 
-## Bigger: needs reverse engineering
+## Bigger: reverse engineering: done (two of four)
 
-Jieli's SDK defines these features, but each one needs packet captures (with
-`AIRBUDS_DEBUG=1` and the official phone app) to confirm whether a given
-firmware supports it and how.
+Worked out from Jieli's published SDK and app source
+([Android-JL_Bluetooth](https://github.com/Jieli-Tech/Android-JL_Bluetooth)) and
+read-only probes of a HOCO EQ34 Plus ANC (`AIRBUDS_SEND`), then tested on it.
+Details in [PROTOCOL.md](PROTOCOL.md).
 
 | # | Feature | Notes |
 | --- | --- | --- |
-| 10 | **Custom EQ** | A 5- or 10-band slider editor instead of fixed presets. The EQ attribute (`04`) already carries per-band gains and attribute `0C` lists the band frequencies, so this is the most promising of the four. |
-| 11 | **Touch controls** | Change what tap, double-tap and long-press do on each bud. |
-| 12 | **Find My Earbuds** | Play a loud tone on a lost bud. |
-| 13 | **In-ear detection** | Pause media when you take a bud out, if the earbuds report wear status. |
+| 10 | ✅ **Custom EQ** | 10 bands, ±8 dB, as EQ mode `6`. The earbuds accept it but don't report the gains back, so AirBuds keeps and re-sends them. Not yet confirmed by ear. |
+| 11 | ✅ **Touch controls** | Single, double and triple tap per bud, including "switch noise mode". Verified: changes are accepted and read back. |
+| 12 | ➖ **Find My Earbuds** | Worked (opcode `19`; the left bud played alone in a test) but left out of the app by choice. The protocol is in PROTOCOL.md if it's wanted later. |
+| 13 | ⛔ **In-ear detection** | Not possible on the EQ34: it doesn't report ADV attribute `08` (in-ear check), so it has no wear sensor. Could be added for models that report it. |
 
 ## Distribution
 
@@ -52,8 +53,9 @@ firmware supports it and how.
 
 ## Suggested order
 
-1. **Custom EQ** (#10): the feature people most often miss in the official Hoco app.
-2. **Find My Earbuds** (#12): useful and usually a single command once captured.
+1. **Confirm Custom EQ by ear** on the EQ34, and adjust if the gains don't apply.
+2. **A shortcut recorder** for the noise control shortcut.
+3. **Developer ID signing** (see Distribution) when there's a paid account.
 
 Notes on the shipped quick wins:
 

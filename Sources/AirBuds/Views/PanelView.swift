@@ -5,7 +5,7 @@ import AirBudsKit
 import SwiftUI
 
 enum PanelPage: Equatable {
-    case main, quickSettings, equalizer, battery
+    case main, quickSettings, equalizer, battery, touchControls
 }
 
 final class PanelNavigation: ObservableObject {
@@ -31,6 +31,8 @@ struct PanelView: View {
                 EqualizerView().transition(.move(edge: .trailing).combined(with: .opacity))
             case .battery:
                 BatteryView().transition(.move(edge: .trailing).combined(with: .opacity))
+            case .touchControls:
+                TouchControlsView().transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
         .frame(width: Self.width)

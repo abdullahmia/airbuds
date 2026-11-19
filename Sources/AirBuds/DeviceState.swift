@@ -1,6 +1,7 @@
 // Snapshot of everything the panel shows about the connected earbuds, and how
 // the UI names each noise mode.
 
+import Foundation
 import AirBudsKit
 
 struct QuickState: Equatable {
@@ -12,7 +13,11 @@ struct QuickState: Equatable {
 struct EqState: Equatable {
     var preset: Int?
     var pending = false
+    /// Gains for Custom (mode 6), one per band in dB. AirBuds keeps them, as
+    /// Jieli's app does; the earbuds don't report them back.
+    var customGains: [Int] = []
 }
+
 
 struct DeviceState: Equatable {
     var connected = false
@@ -24,6 +29,8 @@ struct DeviceState: Equatable {
     var noisePending = false
     var quick = QuickState()
     var eq = EqState()
+    var touchControls: [TouchControl] = []
+    var touchPending = false
     var capabilities = Capabilities()
 }
 

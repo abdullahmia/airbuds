@@ -18,10 +18,15 @@ final class EarbudsController: ObservableObject {
     @Published private(set) var connectFailed: String?
 
     private static let batteryPoll: TimeInterval = 60
+    /// Custom EQ changes are sent once the slider rests this long.
+    private static let customEqDelay: TimeInterval = 0.12
 
     private let session = JieliSession()
     private let classic = ClassicConnection()
     private var batteryTimer: Timer?
+    private let customEqTimer = Delayed()
+    /// Custom gains were re-sent after connecting (the earbuds don't keep them).
+    private var customEqRestored = false
 
     private lazy var noise = ConfirmedSetting<NoiseMode>(
         read: { [unowned self] in self.session.readNoiseMode() },
@@ -38,6 +43,12 @@ final class EarbudsController: ObservableObject {
     private lazy var nameConfirm = ConfirmedSetting<String>(
         read: { [unowned self] in self.session.readName() },
         onTimeout: { [unowned self] in self.state.namePending = false }
+    )
+    /// Target: the changed gesture; a report matches when it contains it.
+    private lazy var touchConfirm = ConfirmedSetting<[TouchControl]>(
+        read: { [unowned self] in self.session.readTouchControls() },
+        matches: { report, target in Set(target).isSubset(of: Set(report)) },
+        onTimeout: { [unowned self] in self.state.touchPending = false }
     )
 
     private var caps: Capabilities { state.capabilities }
@@ -122,6 +133,78 @@ final class EarbudsController: ObservableObject {
         return true
     }
 
+    // MARK: - Touch controls
+
+    func setTouchControl(bud: Bud, gesture: Int, function: Int) {
+        guard state.connected, caps.touchControls, !touchConfirm.pending else { return }
+        let control = TouchControl(bud: bud, gesture: gesture, function: function)
+        guard !state.touchControls.contains(control) else { return }
+        session.setTouchControl(control)
+        touchConfirm.begin([control])
+        state.touchControls = state.touchControls.map {
+            $0.bud == bud && $0.gesture == gesture ? control : $0
+        }
+        state.touchPending = true
+    }
+
+    // MARK: - Custom EQ
+
+    /// Switches to Custom with the saved gains.
+    func selectCustomEq() {
+        guard state.connected, !caps.eqBands.isEmpty, !eqConfirm.pending else { return }
+        sendCustomEq()
+        eqConfirm.begin(CustomEq.id)
+        state.eq.preset = CustomEq.id
+        state.eq.pending = true
+    }
+
+    /// Sets one band (in dB) of the custom EQ, switching to Custom if needed.
+    func setCustomGain(band: Int, to gain: Int) {
+        guard state.connected, state.eq.customGains.indices.contains(band) else { return }
+        let clamped: Int = min(max(gain, CustomEq.range.lowerBound), CustomEq.range.upperBound)
+        guard state.eq.customGains[band] != clamped else { return }
+        state.eq.customGains[band] = clamped
+        saveCustomGains()
+        if state.eq.preset != CustomEq.id {
+            selectCustomEq()
+        } else {
+            customEqTimer.schedule(Self.customEqDelay) { [weak self] in self?.sendCustomEq() }
+        }
+    }
+
+    /// All bands back to 0 dB.
+    func resetCustomEq() {
+        guard state.connected, !state.eq.customGains.isEmpty else { return }
+        state.eq.customGains = Array(repeating: 0, count: state.eq.customGains.count)
+        saveCustomGains()
+        if state.eq.preset == CustomEq.id { sendCustomEq() }
+    }
+
+    private func sendCustomEq() {
+        customEqTimer.cancel()
+        session.setCustomEq(gains: state.eq.customGains)
+    }
+
+    private var customGainsKey: String? { state.address.map { "customEq.\($0)" } }
+
+    private func saveCustomGains() {
+        guard let key = customGainsKey else { return }
+        UserDefaults.standard.set(state.eq.customGains, forKey: key)
+    }
+
+    /// Saved gains for these earbuds, else the earbuds' own Custom slot, else flat.
+    private func loadCustomGains(table: [UInt8]?) {
+        let bands = caps.eqBands.count
+        guard bands > 0, state.eq.customGains.count != bands else { return }
+        if let key = customGainsKey, let saved = UserDefaults.standard.array(forKey: key) as? [Int], saved.count == bands {
+            state.eq.customGains = saved
+        } else if let table, table.count == bands {
+            state.eq.customGains = table.map { Int(Int8(bitPattern: $0)) }
+        } else {
+            state.eq.customGains = Array(repeating: 0, count: bands)
+        }
+    }
+
     func setEqPreset(_ id: Int) {
         guard state.connected, !eqConfirm.pending, id != state.eq.preset,
               caps.eqPresets.contains(where: { $0.id == id }) else { return }
@@ -171,6 +254,12 @@ final class EarbudsController: ObservableObject {
             state.eq.preset = preset
             state.eq.pending = false
         }
+        if !info.eqFrequencies.isEmpty { loadCustomGains(table: info.eqGains[CustomEq.id]) }
+        // Custom was left on: the earbuds may have dropped the gains, so send ours.
+        if state.eq.preset == CustomEq.id, !customEqRestored, !state.eq.customGains.isEmpty {
+            customEqRestored = true
+            sendCustomEq()
+        }
     }
 
     private func onAdvInfo(_ info: JieliAdvInfo) {
@@ -180,6 +269,10 @@ final class EarbudsController: ObservableObject {
         if let name = info.name, !name.isEmpty, nameConfirm.accept(name) {
             state.name = name
             state.namePending = false
+        }
+        if let controls = info.touchControls, touchConfirm.accept(controls) {
+            state.touchControls = controls
+            state.touchPending = false
         }
         if let on = info.lowLatency, lowLatencyConfirm.accept(on) {
             state.quick.lowLatency = on
@@ -216,5 +309,8 @@ final class EarbudsController: ObservableObject {
         eqConfirm.reset()
         lowLatencyConfirm.reset()
         nameConfirm.reset()
+        touchConfirm.reset()
+        customEqTimer.cancel()
+        customEqRestored = false
     }
 }
