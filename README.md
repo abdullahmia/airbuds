@@ -17,10 +17,6 @@
   <a href="docs/ARCHITECTURE.md">How it works</a>
 </p>
 
-<p align="center">
-  <img src="docs/screenshots/menu-bar.png" width="303" alt="AirBuds open from the menu bar, connected to HOCO EQ34 Plus ANC, showing 100% battery on both buds and Noise Cancellation selected">
-</p>
-
 ## Why
 
 Hoco earbuds work fine on a Mac for audio, but there's no way to see each
