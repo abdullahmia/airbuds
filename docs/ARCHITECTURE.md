@@ -10,9 +10,9 @@ The Swift package has three targets.
 
 | Target | Kind | What it does |
 | --- | --- | --- |
-| `AirBudsKit` | library | The earbud protocol (Jieli RCSP): handshake cipher, packet framing, payload encoders and decoders, and capabilities. Pure Swift with no UI or Bluetooth, so it's easy to test. |
+| `AirBudsKit` | library | The earbud protocol (Jieli RCSP): handshake cipher, packet framing, payload encoders and decoders, and capabilities. Also the app's decision logic: battery alerts, battery history and time left, per-app automation, and `airbuds://` link parsing. Pure Swift with no UI or Bluetooth, so it's easy to test. |
 | `AirBuds` | app | BLE transport, device state, settings and the SwiftUI panel. |
-| `AirBudsKitChecks` | tool | Self-checks for `AirBudsKit` (`swift run AirBudsKitChecks`), built on bytes captured from real earbuds. |
+| `AirBudsKitChecks` | tool | Self-checks for `AirBudsKit` (`swift run AirBudsKitChecks`): protocol checks built on bytes captured from real earbuds, plus the battery, automation and link logic. |
 
 ```mermaid
 flowchart LR
@@ -25,17 +25,22 @@ flowchart LR
         Session["JieliSession<br/>commands ⇄ reports"]
         Transport["JieliTransport<br/>CoreBluetooth · handshake"]
         Settings["AppSettings<br/>UserDefaults · SMAppService"]
+        Extras["CommandRunner · HotKey · ModeHUD<br/>AutomationController<br/>BatteryNotifier · BatteryHistoryStore"]
     end
     subgraph Kit["AirBudsKit"]
         Auth["JieliAuth<br/>E1 / SAFER+"]
         Rcsp["Rcsp · RcspParser"]
         Codec["JieliCodec<br/>sys info · ADV info"]
         Models["Capabilities<br/>Battery · NoiseMode · EqPreset"]
+        Logic["LowBatteryTracker · FullChargeTracker<br/>BatteryHistory · AutomationEngine<br/>AirBudsCommand"]
     end
     Buds(("Earbuds"))
 
     Main --> Views
     Main --> Settings
+    Main --> Extras
+    Extras --> Controller
+    Extras --> Logic
     Views -- "user actions" --> Controller
     Controller -- "state" --> Views
     Controller --> Confirm
@@ -53,21 +58,31 @@ flowchart LR
 ```
 Sources/AirBudsKit/
   Jieli.swift              Handshake (E1/SAFER+), RCSP framing and parser, payload codecs, capability learning
-  Models.swift             Battery, NoiseMode, EqPreset, Capabilities
+  Models.swift             Battery, NoiseMode (and cycling order), EqPreset, Capabilities
   LowBattery.swift         When to alert: 20% / 10% thresholds, re-arm after charging
+  FullCharge.swift         When to say "fully charged": reaching 100% after charging below it
+  BatteryHistory.swift     Battery samples, sessions and the time-left estimate
+  Automation.swift         Per-app rules and the engine that applies and restores them
+  Commands.swift           airbuds:// link parsing
 Sources/AirBuds/
-  main.swift               App entry, status item, popover, right-click menu
+  main.swift               App entry, status item, popover, right-click menu, link handling
   JieliTransport.swift     Finds the BLE side of the connected buds, connects, runs the handshake, relays bytes
   JieliSession.swift       Encodes reads and settings, decodes replies and pushed updates
   EarbudsController.swift  All device state and every setter
   ConfirmedSetting.swift   "Wait until the buds confirm" helper plus timer utilities
   DeviceState.swift        Plain value types the UI renders
-  AppSettings.swift        Menu bar battery mode, low battery alerts, Open at Login
-  LowBatteryNotifier.swift Posts notifications; rules live in AirBudsKit/LowBattery.swift
-  MenuBarIcon.swift        The menu bar icon (SF "earbuds" symbol as a template image)
+  AppSettings.swift        Menu bar options, alerts, shortcut, automation rules, Open at Login
+  BatteryNotifier.swift    Posts low battery and fully charged notifications
+  BatteryHistoryStore.swift Records battery samples per device and saves them to Application Support
+  CommandRunner.swift      Runs the keyboard shortcut and airbuds:// links; waits for the buds if needed
+  AutomationController.swift Watches apps launching and quitting and applies automation rules
+  HotKey.swift             System-wide shortcut through Carbon's RegisterEventHotKey
+  ModeHUD.swift            The on-screen indicator under the menu bar icon
+  MenuBarIcon.swift        The menu bar icon (SF "earbuds" symbol), with the noise mode beside it
   Log.swift                Console logging; AIRBUDS_DEBUG=1 logs every packet
   DebugSnapshots.swift     Debug only: renders every page to PNG (used for docs/screenshots)
-  Views/                   One file per panel page plus shared components
+  Views/                   One file per panel page (Main, Battery, Equalizer, Quick Settings),
+                           shared components, and the Automations window
 ```
 
 ## How a connection comes up
@@ -150,10 +165,59 @@ once the level is back 5+ points above the last alert, so a battery hovering at
 one notification. Permission is requested the first time earbuds connect, not
 at launch.
 
+## Battery history and time left
+
+`BatteryHistoryStore` records a sample whenever the battery changes, plus a
+heartbeat every 5 minutes while connected, one history per earbuds address. A
+gap of more than 15 minutes ends a session. It saves to
+`~/Library/Application Support/AirBuds/battery-history.json` 30 seconds after a
+change and on quit, and drops samples older than 7 days.
+
+Time left uses the trailing discharge of the current session (no charging, level
+never rising) and needs at least two level drops 5+ minutes apart. The rate is
+measured from the first drop to the last, not from when a level was first seen,
+because some earbuds report in 10% steps. If the next drop is overdue, the rate
+is slowed to match. The main panel shows the bud that runs out first.
+
+## Fully charged alerts
+
+`FullChargeTracker` alerts when a part reaches 100% after being seen charging
+below 100%, so connecting buds that are already full stays quiet. Some firmware
+clears the charging flag at 100%, so a full report counts either way. Charging
+that stops short of 100% disarms that part.
+
+## Keyboard shortcut, links and the indicator
+
+`HotKey` registers ⌃⌥N with Carbon's `RegisterEventHotKey`, which works in any
+app without Accessibility permission. `airbuds://` links arrive through
+`application(_:open:)` and are parsed into an `AirBudsCommand`. Both go through
+`CommandRunner`, which applies the change and shows `ModeHUD`, a non-activating
+panel under the status item that fades out after a moment.
+
+A link can launch the app before the earbuds are ready. `CommandRunner` then
+retries on each state change for up to 20 seconds. Missing capabilities count as
+missing only after the first reads come back, so a model without ANC gets
+"Not Available" and not an endless wait.
+
+## Automations
+
+Rules live in `AppSettings` (JSON in UserDefaults). `AutomationController`
+re-evaluates whenever an app launches or quits, the rules change, or the earbuds
+report. It passes running apps (oldest first) and the current settings to
+`AutomationEngine`, which returns only the changes to send:
+
+- For each setting, the newest running app whose rule sets it wins.
+- When a rule first takes a setting over, the engine remembers the old value.
+- When no rule controls it any more, it restores that value, but only if the
+  setting still has the value the rule set. A manual change in between is kept.
+- Nothing is sent until the earbuds have reported that setting. On disconnect
+  the engine resets, so rules for apps still open apply again on reconnect.
+
 ## UI
 
-- `NSStatusItem` shows the earbuds icon (a template image) and, optionally,
-  battery text. Left click toggles an `NSPopover`; right click shows the app menu.
+- `NSStatusItem` shows the earbuds icon (a template image), optionally with the
+  noise mode symbol beside it and battery text. Left click toggles an
+  `NSPopover`; right click shows the app menu.
 - The popover hosts `PanelView` in an `NSHostingController` with
   `sizingOptions = .preferredContentSize`, so its height follows the content.
 - `PanelNavigation.page` drives the sub-pages, which slide in from the right.

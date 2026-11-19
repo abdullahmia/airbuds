@@ -40,20 +40,54 @@ enum MenuBarBattery: String, CaseIterable, Identifiable {
 }
 
 final class AppSettings: ObservableObject {
-    private let defaults = UserDefaults.standard
+    /// nil: keep changes in memory only.
+    private let defaults: UserDefaults?
 
     @Published var menuBarBattery: MenuBarBattery {
-        didSet { defaults.set(menuBarBattery.rawValue, forKey: "menuBarBattery") }
+        didSet { defaults?.set(menuBarBattery.rawValue, forKey: "menuBarBattery") }
     }
 
     /// Notify when a bud or the case drops to 20% and 10%.
     @Published var lowBatteryAlerts: Bool {
-        didSet { defaults.set(lowBatteryAlerts, forKey: "lowBatteryAlerts") }
+        didSet { defaults?.set(lowBatteryAlerts, forKey: "lowBatteryAlerts") }
     }
 
-    init() {
-        menuBarBattery = MenuBarBattery(rawValue: defaults.string(forKey: "menuBarBattery") ?? "") ?? .off
-        lowBatteryAlerts = defaults.object(forKey: "lowBatteryAlerts") as? Bool ?? true
+    /// Notify when a bud or the case finishes charging.
+    @Published var fullChargeAlerts: Bool {
+        didSet { defaults?.set(fullChargeAlerts, forKey: "fullChargeAlerts") }
+    }
+
+    /// Badge the menu bar icon with the current noise mode.
+    @Published var menuBarNoiseMode: Bool {
+        didSet { defaults?.set(menuBarNoiseMode, forKey: "menuBarNoiseMode") }
+    }
+
+    /// ⌃⌥N cycles the noise mode from anywhere.
+    @Published var noiseShortcut: Bool {
+        didSet { defaults?.set(noiseShortcut, forKey: "noiseShortcut") }
+    }
+
+    /// Settings to use while particular apps are open.
+    @Published var automationRules: [AutomationRule] {
+        didSet {
+            if let data = try? JSONEncoder().encode(automationRules) {
+                defaults?.set(data, forKey: "automationRules")
+            }
+        }
+    }
+
+    /// `persist: false` starts from the defaults and saves nothing (for snapshots).
+    init(persist: Bool = true) {
+        let defaults: UserDefaults? = persist ? .standard : nil
+        self.defaults = defaults
+        menuBarBattery = MenuBarBattery(rawValue: defaults?.string(forKey: "menuBarBattery") ?? "") ?? .off
+        lowBatteryAlerts = defaults?.object(forKey: "lowBatteryAlerts") as? Bool ?? true
+        fullChargeAlerts = defaults?.object(forKey: "fullChargeAlerts") as? Bool ?? true
+        menuBarNoiseMode = defaults?.object(forKey: "menuBarNoiseMode") as? Bool ?? true
+        noiseShortcut = defaults?.object(forKey: "noiseShortcut") as? Bool ?? true
+        let rules = defaults?.data(forKey: "automationRules")
+            .flatMap { try? JSONDecoder().decode([AutomationRule].self, from: $0) }
+        automationRules = rules ?? []
     }
 }
 

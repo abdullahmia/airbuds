@@ -1,13 +1,15 @@
-// Posts a macOS notification when the earbuds' battery runs low.
-// Thresholds and "don't repeat" rules live in AirBudsKit's LowBatteryTracker.
+// Posts macOS notifications when the earbuds' battery runs low or finishes
+// charging. When to alert lives in AirBudsKit's LowBatteryTracker and
+// FullChargeTracker.
 
 import Combine
 import Foundation
 import AirBudsKit
 import UserNotifications
 
-final class LowBatteryNotifier: NSObject, UNUserNotificationCenterDelegate {
+final class BatteryNotifier: NSObject, UNUserNotificationCenterDelegate {
     private var tracker = LowBatteryTracker()
+    private var fullTracker = FullChargeTracker()
     private var deviceName: String?
     private var authorizationRequested = false
     private var cancellables = Set<AnyCancellable>()
@@ -24,26 +26,29 @@ final class LowBatteryNotifier: NSObject, UNUserNotificationCenterDelegate {
         controller.$state
             .map { ($0.connected, $0.name, $0.battery) }
             .removeDuplicates { $0 == $1 }
-            .combineLatest(settings.$lowBatteryAlerts)
+            .combineLatest(settings.$lowBatteryAlerts, settings.$fullChargeAlerts)
             .receive(on: RunLoop.main)
-            .sink { [weak self] report, enabled in
-                self?.handle(connected: report.0, name: report.1, battery: report.2, enabled: enabled)
+            .sink { [weak self] report, low, full in
+                self?.handle(connected: report.0, name: report.1, battery: report.2, low: low, full: full)
             }
             .store(in: &cancellables)
     }
 
-    private func handle(connected: Bool, name: String?, battery: Battery, enabled: Bool) {
+    private func handle(connected: Bool, name: String?, battery: Battery, low: Bool, full: Bool) {
         guard connected, let name else { return } // keep state across brief disconnects
         if name != deviceName {
             deviceName = name
             tracker.reset()
+            fullTracker.reset()
         }
         // Ask for permission the first time earbuds connect, not at app launch.
-        if enabled { requestAuthorizationOnce() }
+        if low || full { requestAuthorizationOnce() }
 
-        let alerts = tracker.update(battery) // always run, so turning alerts on later doesn't fire stale ones
-        guard enabled, !alerts.isEmpty else { return }
-        post(alerts, device: name)
+        // Always run the trackers, so turning alerts on later doesn't fire stale ones.
+        let alerts = tracker.update(battery)
+        let charged = fullTracker.update(battery)
+        if low, !alerts.isEmpty { post(alerts, device: name) }
+        if full, !charged.isEmpty { postCharged(charged, device: name) }
     }
 
     private func requestAuthorizationOnce() {
@@ -67,9 +72,26 @@ final class LowBatteryNotifier: NSObject, UNUserNotificationCenterDelegate {
         content.sound = .default
 
         Log.info("Low battery: \(content.body)")
+        // One notification per kind; a newer alert replaces the older one.
+        deliver(content, id: "low-battery")
+    }
+
+    private func postCharged(_ parts: [BatteryPart], device: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "Fully Charged"
+        content.subtitle = device
+        let names: String = ListFormatter.localizedString(byJoining: parts.map { $0.label })
+        let verb: String = parts.count == 1 ? "is" : "are"
+        content.body = "\(names) \(verb) at 100%."
+        content.sound = .default
+
+        Log.info("Fully charged: \(content.body)")
+        deliver(content, id: "fully-charged")
+    }
+
+    private func deliver(_ content: UNNotificationContent, id: String) {
         guard let center else { return }
-        // One notification per device; a newer alert replaces the older one.
-        let request = UNNotificationRequest(identifier: "low-battery", content: content, trigger: nil)
+        let request = UNNotificationRequest(identifier: id, content: content, trigger: nil)
         // Waits for the permission prompt on first use (returns at once after that),
         // so an alert that fires right as the buds connect isn't dropped.
         center.requestAuthorization(options: [.alert, .sound]) { granted, _ in

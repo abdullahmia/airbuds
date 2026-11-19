@@ -1,10 +1,11 @@
-// Quick Settings page: a Low Latency tile and device info.
+// Quick Settings page: a Low Latency tile, a link to Automations and device info.
 
 import AirBudsKit
 import SwiftUI
 
 struct QuickSettingsView: View {
     @EnvironmentObject var device: EarbudsController
+    @EnvironmentObject var nav: PanelNavigation
 
     private var state: DeviceState { device.state }
 
@@ -18,6 +19,16 @@ struct QuickSettingsView: View {
                 }
                 .padding(.horizontal, 12)
             }
+
+            Button { nav.openAutomations() } label: {
+                HStack(spacing: 10) {
+                    IconBadge(symbol: "app.badge.checkmark")
+                    Text("Automations…").font(.system(size: 13))
+                    Spacer()
+                }
+            }
+            .buttonStyle(HoverRowStyle())
+            .help("Change settings automatically while particular apps are open")
 
             DeviceInfo()
         }

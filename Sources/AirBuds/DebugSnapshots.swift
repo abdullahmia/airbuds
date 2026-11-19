@@ -28,6 +28,24 @@ extension EarbudsController {
     }
 }
 
+extension BatteryHistory {
+    /// An hour and a half of listening: left drains 10% every 30 minutes, right
+    /// 10% every 12, sampled every minute like the real poll.
+    static func sample(now: Date = Date()) -> BatteryHistory {
+        var history = BatteryHistory()
+        let minutes = 90
+        for minute in 0...minutes {
+            let elapsed = Double(minutes - minute) * 60
+            var battery = Battery()
+            battery.left = BatteryLevel(level: 100 - minute / 30 * 10, charging: false)
+            battery.right = BatteryLevel(level: 100 - minute / 12 * 10, charging: false)
+            battery.case = BatteryLevel(level: 60, charging: true)
+            history.record(battery, at: now.addingTimeInterval(-elapsed))
+        }
+        return history
+    }
+}
+
 enum DebugSnapshots {
     @MainActor static func runIfRequested() {
         // AIRBUDS_LOGIN=off: drop this bundle's Open at Login registration (dev builds).
@@ -41,10 +59,20 @@ enum DebugSnapshots {
         NSApp.setActivationPolicy(.accessory)
 
         let device = EarbudsController()
+        let history = BatteryHistory.sample()
         device.loadSample()
+        if let last = history.samples.last {
+            var state = device.state
+            state.battery = last.battery
+            device.setSampleState(state)
+        }
         let offline = EarbudsController()
         let settings = AppSettings()
-        let pages: [(String, PanelPage)] = [("main", .main), ("quick", .quickSettings), ("eq", .equalizer)]
+        let store = BatteryHistoryStore(controller: device, live: false)
+        store.setSample(history)
+        let pages: [(String, PanelPage)] = [
+            ("main", .main), ("quick", .quickSettings), ("eq", .equalizer), ("battery", .battery),
+        ]
 
         func panel(_ page: PanelPage, _ controller: EarbudsController) -> some View {
             let nav = PanelNavigation()
@@ -53,8 +81,21 @@ enum DebugSnapshots {
                 .environmentObject(controller)
                 .environmentObject(settings)
                 .environmentObject(nav)
+                .environmentObject(store)
                 .fixedSize()
         }
+
+        // Automations window with two sample rules (not saved).
+        let automationSettings = AppSettings(persist: false)
+        automationSettings.automationRules = [
+            AutomationRule(bundleID: "com.apple.FaceTime", appName: "FaceTime",
+                           settings: DeviceSettings(noiseMode: .transparency)),
+            AutomationRule(bundleID: "com.apple.Music", appName: "Music",
+                           settings: DeviceSettings(noiseMode: .anc, eqPreset: 2)),
+        ]
+        let automations = AutomationsView()
+            .environmentObject(automationSettings)
+            .frame(width: 460, height: 440)
 
         for dark in [false, true] {
             let suffix = dark ? "dark" : "light"
@@ -64,6 +105,10 @@ enum DebugSnapshots {
             }
             render(panel(.main, offline).background(Color(nsColor: .windowBackgroundColor)),
                    dark: dark, to: "\(dir)/disconnected-\(suffix).png")
+            render(automations.background(Color(nsColor: .windowBackgroundColor)),
+                   dark: dark, to: "\(dir)/automations-\(suffix).png")
+            let hud = Local(HUDMessage(symbol: NoiseMode.transparency.symbol, title: "Transparency", detail: "Noise Control"))
+            render(HUDView(model: hud).padding(20), dark: dark, to: "\(dir)/hud-\(suffix).png")
 
             // README hero: the pages side by side, each as a floating panel.
             let hero = HStack(alignment: .top, spacing: 28) {

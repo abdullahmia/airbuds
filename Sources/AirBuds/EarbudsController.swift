@@ -82,6 +82,33 @@ final class EarbudsController: ObservableObject {
         state.eq.pending = true
     }
 
+    /// Switches to the next noise mode (NC → Transparency → Off) and returns it.
+    /// While a change is still unconfirmed, returns that change's target instead.
+    /// nil when the earbuds have no noise control.
+    @discardableResult
+    func cycleNoiseMode() -> NoiseMode? {
+        guard state.connected, caps.noiseControl else { return nil }
+        if noise.pending { return state.noiseMode }
+        let next = NoiseMode.next(after: state.noiseMode, transparency: caps.transparency)
+        setNoiseMode(next)
+        return next
+    }
+
+    /// The settings automation can change, as last reported (nil = not known yet).
+    var settings: DeviceSettings {
+        guard state.connected else { return DeviceSettings() }
+        return DeviceSettings(noiseMode: caps.noiseControl ? state.noiseMode : nil,
+                              eqPreset: caps.eqPresets.isEmpty ? nil : state.eq.preset,
+                              lowLatency: caps.lowLatency ? state.quick.lowLatency : nil)
+    }
+
+    /// Sends every non-nil field.
+    func apply(_ changes: DeviceSettings) {
+        if let mode = changes.noiseMode { setNoiseMode(mode) }
+        if let preset = changes.eqPreset { setEqPreset(preset) }
+        if let on = changes.lowLatency { setLowLatency(on) }
+    }
+
     // MARK: - Reports
 
     private func onSysInfo(_ info: JieliSysInfo) {

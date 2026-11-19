@@ -13,7 +13,10 @@ struct MainView: View {
         VStack(spacing: 0) {
             header
             if state.connected {
-                BatteryRow()
+                Button { nav.page = .battery } label: { BatteryRow() }
+                    .buttonStyle(HoverRowStyle())
+                    .help("Battery Details")
+                TimeLeft()
                 if state.capabilities.noiseControl {
                     PanelDivider()
                     NoiseControlSection()
@@ -108,8 +111,24 @@ private struct BatteryRow: View {
                 BudColumn(symbol: "earbuds.case.fill", label: "Case", info: info)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
+    }
+}
+
+/// "About 3h 10m left" for the bud that runs out first, once there's an estimate.
+private struct TimeLeft: View {
+    @EnvironmentObject var device: EarbudsController
+    @EnvironmentObject var store: BatteryHistoryStore
+
+    var body: some View {
+        // Re-read on every battery poll: `device` publishes each report.
+        let _ = device.state.battery
+        if let left = store.soonestEmpty() {
+            Text(Duration.left(left))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 2)
+        }
     }
 }
 
@@ -170,20 +189,20 @@ private struct NoiseControlSection: View {
         let caps = device.state.capabilities
         VStack(spacing: 0) {
             SectionTitle("Noise Control")
-            option(.anc, "Noise Cancellation", "person.wave.2.fill")
+            option(.anc)
             if caps.transparency {
-                option(.transparency, "Transparency", "ear.and.waveform")
+                option(.transparency)
             }
-            option(.off, "Off", "person.fill")
+            option(.off)
         }
     }
 
-    private func option(_ mode: NoiseMode, _ label: String, _ symbol: String) -> some View {
+    private func option(_ mode: NoiseMode) -> some View {
         let selected = device.state.noiseMode == mode
         return Button { device.setNoiseMode(mode) } label: {
             HStack(spacing: 10) {
-                IconBadge(symbol: symbol, on: selected, pending: selected && device.state.noisePending)
-                Text(label).font(.system(size: 13))
+                IconBadge(symbol: mode.symbol, on: selected, pending: selected && device.state.noisePending)
+                Text(mode.label).font(.system(size: 13))
                 Spacer()
             }
         }

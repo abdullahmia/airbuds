@@ -24,6 +24,17 @@
   <true/>
   <key>NSHighResolutionCapable</key>
   <true/>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>com.airbuds.mac</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>airbuds</string>
+      </array>
+    </dict>
+  </array>
   <key>NSBluetoothAlwaysUsageDescription</key>
   <string>AirBuds connects to your earbuds to show battery and change noise control, EQ and other settings.</string>
 </dict>

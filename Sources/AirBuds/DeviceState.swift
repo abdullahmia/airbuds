@@ -1,4 +1,5 @@
-// Snapshot of everything the panel shows about the connected earbuds.
+// Snapshot of everything the panel shows about the connected earbuds, and how
+// the UI names each noise mode.
 
 import AirBudsKit
 
@@ -23,4 +24,22 @@ struct DeviceState: Equatable {
     var quick = QuickState()
     var eq = EqState()
     var capabilities = Capabilities()
+}
+
+extension NoiseMode {
+    var label: String {
+        switch self {
+        case .anc: return "Noise Cancellation"
+        case .transparency: return "Transparency"
+        case .off: return "Off"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .anc: return "person.wave.2.fill"
+        case .transparency: return "ear.and.waveform"
+        case .off: return "person.fill"
+        }
+    }
 }

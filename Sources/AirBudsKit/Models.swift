@@ -4,7 +4,7 @@
 
 // MARK: - Battery
 
-public struct BatteryLevel: Equatable {
+public struct BatteryLevel: Equatable, Codable {
     public var level: Int
     public var charging: Bool
     public init(level: Int, charging: Bool) {
@@ -13,7 +13,7 @@ public struct BatteryLevel: Equatable {
     }
 }
 
-public struct Battery: Equatable {
+public struct Battery: Equatable, Codable {
     public var left: BatteryLevel?
     public var right: BatteryLevel?
     public var `case`: BatteryLevel?
@@ -22,8 +22,16 @@ public struct Battery: Equatable {
 
 // MARK: - Settings
 
-public enum NoiseMode: String, CaseIterable {
+public enum NoiseMode: String, CaseIterable, Codable {
     case anc, transparency, off
+
+    /// The mode after `current` when cycling NC → Transparency → Off (Transparency
+    /// only if the earbuds have it). Starts at Noise Cancellation when unknown.
+    public static func next(after current: NoiseMode?, transparency: Bool) -> NoiseMode {
+        let order: [NoiseMode] = transparency ? [.anc, .transparency, .off] : [.anc, .off]
+        guard let current, let index = order.firstIndex(of: current) else { return order[0] }
+        return order[(index + 1) % order.count]
+    }
 }
 
 public struct EqPreset: Equatable, Identifiable {

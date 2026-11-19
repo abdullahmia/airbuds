@@ -5,11 +5,13 @@ import AirBudsKit
 import SwiftUI
 
 enum PanelPage: Equatable {
-    case main, quickSettings, equalizer
+    case main, quickSettings, equalizer, battery
 }
 
 final class PanelNavigation: ObservableObject {
     @Published var page: PanelPage = .main
+    /// Closes the panel and opens the Automations window.
+    var openAutomations: () -> Void = {}
 }
 
 struct PanelView: View {
@@ -27,6 +29,8 @@ struct PanelView: View {
                 QuickSettingsView().transition(.move(edge: .trailing).combined(with: .opacity))
             case .equalizer:
                 EqualizerView().transition(.move(edge: .trailing).combined(with: .opacity))
+            case .battery:
+                BatteryView().transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
         .frame(width: Self.width)
