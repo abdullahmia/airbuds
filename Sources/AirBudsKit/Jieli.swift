@@ -28,11 +28,14 @@ public enum JieliAuth {
         let address: [UInt8] = [0x11, 0x22, 0x33, 0x33, 0x22, 0x11]
 
         let first = SaferPlus.encrypt(key: key, challenge, feedForward: false)
-        let input = (0..<16).map { (first[$0] ^ challenge[$0]) &+ address[$0 % 6] }
         let offsets: [UInt8] = [233, 229, 223, 193, 179, 167, 149, 131]
-        let offsetKey = (0..<16).map { i -> UInt8 in
-            let add = i < 8 ? i % 2 == 0 : i % 2 == 1
-            return add ? key[i] &+ offsets[i % 8] : key[i] ^ offsets[i % 8]
+        var input = [UInt8](repeating: 0, count: 16)
+        var offsetKey = [UInt8](repeating: 0, count: 16)
+        for i in 0..<16 {
+            let mixed: UInt8 = first[i] ^ challenge[i]
+            input[i] = mixed &+ address[i % 6]
+            let add: Bool = i < 8 ? i % 2 == 0 : i % 2 == 1
+            offsetKey[i] = add ? key[i] &+ offsets[i % 8] : key[i] ^ offsets[i % 8]
         }
         return SaferPlus.encrypt(key: offsetKey, input, feedForward: true)
     }
@@ -59,12 +62,24 @@ enum SaferPlus {
     static let xorPositions: Set<Int> = [0, 3, 4, 7, 8, 11, 12, 15]
     static let shuffle = [8, 11, 12, 15, 2, 1, 6, 5, 10, 9, 14, 13, 0, 7, 4, 3]
 
+    // Written as plain loops with typed locals: CI's compiler times out
+    // type-checking the same arithmetic as one map expression.
     static func roundKeys(_ key: [UInt8]) -> [[UInt8]] {
-        var k = key + [key.reduce(0, ^)]
-        var keys = [key]
+        var k: [UInt8] = key
+        k.append(key.reduce(0, ^))
+        var keys: [[UInt8]] = [key]
         for p in 2...17 {
-            k = k.map { ($0 << 3) | ($0 >> 5) }
-            keys.append((0..<16).map { i in k[(p - 1 + i) % 17] &+ exp[Int(exp[(17 * p + i + 1) & 0xFF])] })
+            for j in 0..<17 {
+                let byte: UInt8 = k[j]
+                k[j] = (byte << 3) | (byte >> 5)
+            }
+            var roundKey = [UInt8](repeating: 0, count: 16)
+            for i in 0..<16 {
+                let biasIndex: Int = (17 * p + i + 1) & 0xFF
+                let bias: UInt8 = exp[Int(exp[biasIndex])]
+                roundKey[i] = k[(p - 1 + i) % 17] &+ bias
+            }
+            keys.append(roundKey)
         }
         return keys
     }
@@ -118,8 +133,16 @@ public enum Rcsp {
 
     /// A command that wants a reply.
     public static func encode(opcode: UInt8, sequence: UInt8, params: [UInt8]) -> [UInt8] {
-        let length = params.count + 1
-        return header + [0xC0, opcode, UInt8(length >> 8), UInt8(length & 0xFF), sequence] + params + [trailer]
+        let length: Int = params.count + 1
+        var frame: [UInt8] = header
+        frame.append(0xC0)
+        frame.append(opcode)
+        frame.append(UInt8(length >> 8))
+        frame.append(UInt8(length & 0xFF))
+        frame.append(sequence)
+        frame.append(contentsOf: params)
+        frame.append(trailer)
+        return frame
     }
 }
 
@@ -153,8 +176,9 @@ public struct RcspParser {
             }
             buffer.removeFirst(start)
             guard buffer.count >= 7 else { return frames }
-            let length = Int(buffer[5]) << 8 | Int(buffer[6])
-            let total = 7 + length + 1
+            let high: Int = Int(buffer[5]) << 8
+            let length: Int = high | Int(buffer[6])
+            let total: Int = 7 + length + 1
             guard buffer.count >= total else { return frames }
             if buffer[total - 1] == Rcsp.trailer {
                 frames.append(RcspFrame(isCommand: buffer[3] & 0x80 != 0, opcode: buffer[4],
@@ -168,7 +192,10 @@ public struct RcspParser {
 
     private func headerIndex() -> Int? {
         guard buffer.count >= 3 else { return nil }
-        return (0...(buffer.count - 3)).first { buffer[$0] == 0xFE && buffer[$0 + 1] == 0xDC && buffer[$0 + 2] == 0xBA }
+        for i in 0...(buffer.count - 3) where Array(buffer[i..<(i + 3)]) == Rcsp.header {
+            return i
+        }
+        return nil
     }
 }
 
@@ -223,8 +250,13 @@ public enum JieliCodec {
 
     /// Attribute bit mask, big-endian.
     static func mask(_ attributes: [UInt8]) -> [UInt8] {
-        let bits = attributes.reduce(UInt32(0)) { $0 | 1 << UInt32($1) }
-        return [UInt8(bits >> 24), UInt8((bits >> 16) & 0xFF), UInt8((bits >> 8) & 0xFF), UInt8(bits & 0xFF)]
+        var bits: UInt32 = 0
+        for type in attributes { bits |= UInt32(1) << UInt32(type) }
+        var out: [UInt8] = []
+        for shift: UInt32 in [24, 16, 8, 0] {
+            out.append(UInt8(truncatingIfNeeded: bits >> shift))
+        }
+        return out
     }
 
     /// [length, type, data (length - 1 bytes)] repeated.
@@ -241,7 +273,8 @@ public enum JieliCodec {
     }
 
     static func attribute(_ type: UInt8, _ data: [UInt8]) -> [UInt8] {
-        [UInt8(data.count + 1), type] + data
+        let length: UInt8 = UInt8(data.count + 1)
+        return [length, type] + data
     }
 
     // MARK: Sys info
@@ -289,15 +322,20 @@ public enum JieliCodec {
 
     /// entry: from JieliSysInfo.noiseModes; without one, the mode with zero gains.
     public static func encodeSetNoiseMode(_ mode: NoiseMode, entry: [UInt8]?) -> [UInt8] {
-        let wire = noiseWire.first { $0.value == mode }?.key ?? 0
-        var data = entry ?? []
-        if data.count != noiseEntryLength { data = [wire] + [UInt8](repeating: 0, count: noiseEntryLength - 1) }
+        let wire: UInt8 = noiseWire.first { $0.value == mode }?.key ?? 0
+        var data: [UInt8] = entry ?? []
+        if data.count != noiseEntryLength {
+            data = [UInt8](repeating: 0, count: noiseEntryLength)
+            data[0] = wire
+        }
         return [publicFunction] + attribute(attrNoiseMode, data)
     }
 
     /// gains: from JieliSysInfo.eqGains (10 bands); without them, flat.
     public static func encodeSetEqPreset(_ id: Int, gains: [UInt8]?) -> [UInt8] {
-        [publicFunction] + attribute(attrEq, [UInt8(id)] + (gains ?? [UInt8](repeating: 0, count: 10)))
+        var data: [UInt8] = [UInt8(id)]
+        data.append(contentsOf: gains ?? [UInt8](repeating: 0, count: 10))
+        return [publicFunction] + attribute(attrEq, data)
     }
 
     // MARK: ADV info

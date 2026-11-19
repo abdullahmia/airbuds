@@ -121,10 +121,11 @@ final class JieliTransport: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         // The beacon carries the classic address; fall back to the advertised name.
         let beacon = [UInt8](data)
         let localName = advertisementData[CBAdvertisementDataLocalNameKey] as? String ?? peripheral.name
-        let match = connectedTargets().first { t in
+        let match = connectedTargets().first { (t: Target) -> Bool in
             guard (attempts[t.address] ?? 0) < Self.maxAttempts else { return false }
-            return t.addressBytes.count == 6 && (contains(beacon, t.addressBytes) || contains(beacon, t.addressBytes.reversed()))
-                || localName == t.name
+            if localName == t.name { return true }
+            guard t.addressBytes.count == 6 else { return false }
+            return contains(beacon, t.addressBytes) || contains(beacon, Array(t.addressBytes.reversed()))
         }
         guard let match else { return }
 
@@ -138,7 +139,10 @@ final class JieliTransport: NSObject, CBCentralManagerDelegate, CBPeripheralDele
 
     private func contains(_ haystack: [UInt8], _ needle: [UInt8]) -> Bool {
         guard haystack.count >= needle.count else { return false }
-        return (0...(haystack.count - needle.count)).contains { Array(haystack[$0..<($0 + needle.count)]) == needle }
+        for start in 0...(haystack.count - needle.count) where Array(haystack[start..<(start + needle.count)]) == needle {
+            return true
+        }
+        return false
     }
 
     // MARK: Opening the service

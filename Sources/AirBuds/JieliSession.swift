@@ -95,6 +95,9 @@ final class JieliSession {
               let record = device.getServiceRecord(for: IOBluetoothSDPUUID(uuid16: 0x1200)),
               let version = record.getAttributeDataElement(0x0202)?.getNumberValue()?.intValue,
               version > 0 else { return nil }
-        return "\(version >> 8).\((version >> 4) & 0xF).\(version & 0xF)"
+        let major: Int = version >> 8
+        let minor: Int = (version >> 4) & 0xF
+        let patch: Int = version & 0xF
+        return "\(major).\(minor).\(patch)"
     }
 }
