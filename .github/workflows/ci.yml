@@ -26,3 +26,10 @@ jobs:
 
       - name: Check architectures
         run: lipo -archs "build/AirBuds.app/Contents/MacOS/AirBuds"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Package DMG
+        run: scripts/make-dmg.sh 0.0.0-ci

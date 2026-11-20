@@ -169,7 +169,7 @@ You need macOS 13 or later, plus Xcode or just the Command Line Tools
 scripts/build-app.sh                 # build/AirBuds.app for this Mac's chip
 scripts/build-app.sh --install       # …and copy it to /Applications
 scripts/build-app.sh --universal     # arm64 + x86_64 (needs the Xcode license accepted)
-scripts/make-dmg.sh 0.1.0            # DMG, zip and SHA256SUMS.txt in dist/
+scripts/make-dmg.sh 0.1.0            # DMG, zip and SHA256SUMS.txt in dist/ (needs Python 3.10+)
 ```
 
 You can also open `Package.swift` in Xcode, pick the **AirBuds** scheme and press Run.
@@ -232,7 +232,7 @@ Sources/AirBudsKit/        Earbud protocol, plus battery, automation and link lo
 Sources/AirBuds/           Menu bar app: BLE transport, device state, SwiftUI panel
 Sources/AirBudsKitChecks/  Self-checks for AirBudsKit
 Resources/                 Info.plist and app icon
-scripts/                   build-app.sh, make-dmg.sh, make-appcast.sh
+scripts/                   build-app.sh, make-dmg.sh (+ DMG window art and layout), make-appcast.sh
 docs/                      Architecture, protocol, screenshots
 .github/workflows/         CI and release
 ```
