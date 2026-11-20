@@ -29,7 +29,7 @@ All three shipped. See the README for how to use them.
 | --- | --- | --- |
 | 7 | ✅ **Rename your earbuds** | Pencil next to the name in Quick Settings. ADV attribute `01` through `C0`, up to 20 bytes; the EQ34 Plus ANC accepts it (result 0) and reads it back. Other devices see it after the earbuds restart. Renamed earbuds are remembered by address. |
 | 8 | ✅ **Auto-update with Sparkle** | Daily checks and Check for Updates…; releases publish an EdDSA-signed `appcast.xml`. Needs the `SPARKLE_PRIVATE_KEY` repository secret (see README → Releasing). |
-| 9 | ✅ **Connect / disconnect button** | Paired earbuds with a Connect button when none are connected, Disconnect in Quick Settings, and `airbuds://connect` / `disconnect`. |
+| 9 | ✅ **Connect / disconnect button** | Paired earbuds with a Connect button when none are connected, a Disconnect button at the top of the panel, and `airbuds://connect` / `disconnect`. |
 
 ## Bigger: reverse engineering: done (two of four)
 

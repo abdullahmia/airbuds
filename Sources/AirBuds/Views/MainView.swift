@@ -54,7 +54,8 @@ struct MainView: View {
                 .disabled(!state.connected || state.capabilities.eqPresets.isEmpty)
             HeaderButton(symbol: "gearshape", help: "Quick Settings") { nav.page = .quickSettings }
                 .disabled(!state.connected)
-            HeaderButton(symbol: "power", help: "Quit AirBuds") { NSApp.terminate(nil) }
+            HeaderButton(symbol: "antenna.radiowaves.left.and.right.slash", help: "Disconnect") { device.disconnect() }
+                .disabled(!state.connected)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 6)

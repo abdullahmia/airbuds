@@ -1,5 +1,5 @@
 // Quick Settings page: a Low Latency tile, Automations, Touch Controls,
-// Disconnect, and device info with the earbuds' name (editable here).
+// Quit, and device info with the earbuds' name (editable here).
 
 import AirBudsKit
 import SwiftUI
@@ -37,15 +37,15 @@ struct QuickSettingsView: View {
                 }
             }
 
-            Button { device.disconnect() } label: {
+            Button { NSApp.terminate(nil) } label: {
                 HStack(spacing: 10) {
-                    IconBadge(symbol: "xmark")
-                    Text("Disconnect").font(.system(size: 13))
+                    IconBadge(symbol: "power")
+                    Text("Quit AirBuds").font(.system(size: 13))
                     Spacer()
                 }
             }
             .buttonStyle(HoverRowStyle())
-            .help("Disconnect the earbuds from this Mac")
+            .help("Quit AirBuds")
 
             DeviceInfo()
         }

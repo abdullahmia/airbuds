@@ -85,11 +85,11 @@ off from the right-click menu.
 
 | | |
 | --- | --- |
-| <img src="docs/screenshots/main-light.png" width="300" alt="Main panel"> | **Main panel**<br>Battery for each bud and the case (shown when the earbuds report it), and how long until the first bud runs out. Click a noise mode to switch.<br><br>Buttons at the top right: **Equalizer**, **Quick Settings** and **Quit**. |
+| <img src="docs/screenshots/main-light.png" width="300" alt="Main panel"> | **Main panel**<br>Battery for each bud and the case (shown when the earbuds report it), and how long until the first bud runs out. Click a noise mode to switch.<br><br>Buttons at the top right: **Equalizer**, **Quick Settings** and **Disconnect**. |
 | <img src="docs/screenshots/battery-light.png" width="300" alt="Battery page with a chart of this session"> | **Battery**<br>Click the battery row. The chart shows each bud's level since you started listening; hover it for the exact reading. Below it, time left for each bud. |
 | <img src="docs/screenshots/eq-custom-light.png" width="300" alt="Equalizer with Custom selected and ten band sliders"> | **Equalizer**<br>Click a preset to apply it, or **Custom** to shape the sound yourself: drag each of the 10 bands (31 Hz to 16 kHz) up or down by up to 8 dB. |
 | <img src="docs/screenshots/touch-light.png" width="300" alt="Touch Controls"> | **Touch Controls**<br>From Quick Settings. Pick what single, double and triple tap do on each bud: play/pause, next or previous track, volume, calls, or switching the noise mode. Saved on the earbuds. |
-| <img src="docs/screenshots/quick-light.png" width="300" alt="Quick Settings"> | **Quick Settings**<br>Turn **Low Latency** on or off, open **Automations**, **Disconnect** the earbuds, and see the firmware version and Bluetooth address. Click the pencil next to the name to **rename** them. |
+| <img src="docs/screenshots/quick-light.png" width="300" alt="Quick Settings"> | **Quick Settings**<br>Turn **Low Latency** on or off, open **Automations**, **Quit** AirBuds, and see the firmware version and Bluetooth address. Click the pencil next to the name to **rename** them. |
 | <img src="docs/screenshots/disconnected-light.png" width="300" alt="Not connected, with paired earbuds and a Connect button"> | **Not connected**<br>Your paired Hoco earbuds are listed. Click one to **connect** it to this Mac. |
 
 **Right-click the menu bar icon** for:
