@@ -4,6 +4,9 @@ name: Release
 # with a DMG, a zip, SHA256SUMS.txt and appcast.xml (the Sparkle update feed that
 # installed copies check). Can also be run by hand from the Actions tab.
 #
+# Afterwards it starts the Website workflow (pages.yml), so the landing page
+# links to the new DMG.
+#
 # Needs the repository secret SPARKLE_PRIVATE_KEY (the EdDSA key from Sparkle's
 # generate_keys). Without it the release still publishes, but installed copies
 # won't be offered the update.
@@ -18,6 +21,7 @@ on:
 
 permissions:
   contents: write
+  actions: write # start the Website workflow after publishing
 
 jobs:
   release:
@@ -95,3 +99,8 @@ jobs:
             gh release create "$TAG" dist/* --title "AirBuds $VERSION" --notes "$NOTES" \
               --target "${{ github.sha }}"
           fi
+
+      - name: Update website
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main

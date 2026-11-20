@@ -1,0 +1,254 @@
+<!doctype html>
+<!--
+  AirBuds landing page. Plain HTML + Tailwind (browser build). The {{…}}
+  placeholders are filled from the latest GitHub release by
+  scripts/build-site.sh, which writes the finished page to _site/. Opened
+  directly, this file shows the images but not the version or download link.
+  icon.png and screenshots/ are links to docs/.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AirBuds: Hoco earbuds in your Mac menu bar</title>
+  <meta name="description" content="Battery, noise control, EQ and touch controls for Hoco earbuds, right in the Mac menu bar. Free, open source, no account or internet needed.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="AirBuds">
+  <meta property="og:description" content="Battery, noise control and EQ for your Hoco earbuds, right in the Mac menu bar.">
+  <meta property="og:url" content="{{SITE_URL}}">
+  <meta property="og:image" content="{{SITE_URL}}screenshots/overview-light.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.11"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --color-accent: #0a84ff;
+    }
+  </style>
+</head>
+<body class="bg-white text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100">
+
+  <!-- Nav -->
+  <header class="sticky top-0 z-10 border-b border-zinc-200/70 bg-white/80 backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/80">
+    <nav class="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
+      <a href="#" class="flex items-center gap-2 font-semibold">
+        <img src="icon.png" alt="" width="28" height="28" class="size-7">
+        AirBuds
+      </a>
+      <div class="flex items-center gap-5 text-sm text-zinc-600 dark:text-zinc-400">
+        <a href="#features" class="hidden hover:text-zinc-900 sm:inline dark:hover:text-white">Features</a>
+        <a href="#install" class="hidden hover:text-zinc-900 sm:inline dark:hover:text-white">Install</a>
+        <a href="{{REPO_URL}}" class="hover:text-zinc-900 dark:hover:text-white">GitHub</a>
+        <a href="{{DMG_URL}}" class="rounded-full bg-accent px-3.5 py-1.5 font-medium text-white hover:brightness-110">Download</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="mx-auto max-w-5xl px-4 pt-16 pb-12 text-center sm:px-6 sm:pt-24">
+      <img src="icon.png" alt="AirBuds icon" width="112" height="112" class="mx-auto size-24 sm:size-28">
+      <h1 class="mt-6 text-4xl font-bold tracking-tight text-balance sm:text-6xl">
+        Your Hoco earbuds,<br class="hidden sm:block"> in the Mac menu bar.
+      </h1>
+      <p class="mx-auto mt-5 max-w-2xl text-lg text-pretty text-zinc-600 sm:text-xl dark:text-zinc-400">
+        See each bud's battery, switch noise cancellation and change the EQ without reaching for your phone.
+        A native Mac app, styled like the AirPods menu.
+      </p>
+      <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <a href="{{DMG_URL}}" class="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-base font-semibold text-white shadow-sm hover:brightness-110">
+          <svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14"/></svg>
+          Download for Mac
+        </a>
+        <a href="{{REPO_URL}}" class="inline-flex items-center gap-2 rounded-full px-6 py-3 text-base font-semibold text-zinc-700 ring-1 ring-zinc-300 hover:bg-zinc-50 dark:text-zinc-200 dark:ring-zinc-700 dark:hover:bg-zinc-900">
+          View on GitHub
+        </a>
+      </div>
+      <p class="mt-4 text-sm text-zinc-500">
+        Version {{VERSION}} · {{DMG_SIZE}} · macOS 13 or later · Apple Silicon and Intel
+      </p>
+
+      <picture>
+        <source srcset="screenshots/overview-dark.png" media="(prefers-color-scheme: dark)">
+        <img src="screenshots/overview-light.png" width="1036" height="372"
+             alt="The AirBuds panel: battery for each bud and the case, noise control, Quick Settings and the equalizer"
+             class="mx-auto mt-14 w-full max-w-[1036px] rounded-2xl shadow-2xl shadow-zinc-900/10 ring-1 ring-zinc-900/5 dark:shadow-black/40 dark:ring-white/10">
+      </picture>
+    </section>
+
+    <!-- Privacy strip -->
+    <section class="border-y border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50">
+      <div class="mx-auto grid max-w-5xl gap-6 px-4 py-8 text-center sm:grid-cols-3 sm:px-6">
+        <div><p class="font-semibold">No account</p><p class="text-sm text-zinc-600 dark:text-zinc-400">Nothing to sign up for.</p></div>
+        <div><p class="font-semibold">No internet</p><p class="text-sm text-zinc-600 dark:text-zinc-400">It talks to your earbuds directly over Bluetooth.</p></div>
+        <div><p class="font-semibold">No telemetry</p><p class="text-sm text-zinc-600 dark:text-zinc-400">Free and open source, MIT licensed.</p></div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="mx-auto max-w-5xl scroll-mt-20 px-4 py-20 sm:px-6">
+      <h2 class="text-center text-3xl font-bold tracking-tight sm:text-4xl">Everything your phone app does, on your Mac</h2>
+      <p class="mx-auto mt-3 max-w-2xl text-center text-zinc-600 dark:text-zinc-400">
+        AirBuds only shows the controls your earbuds say they support. On a model without ANC, the noise control section simply doesn't appear.
+      </p>
+
+      <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="rounded-2xl bg-zinc-50 p-6 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
+          <svg viewBox="0 0 24 24" class="size-7 text-accent" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/><rect x="5" y="10" width="7" height="4" rx=".5" fill="currentColor" stroke="none"/></svg>
+          <h3 class="mt-4 font-semibold">Battery and time left</h3>
+          <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Left bud, right bud and case, an estimate of time left, and a chart of your listening session.</p>
+        </div>
+        <div class="rounded-2xl bg-zinc-50 p-6 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
+          <svg viewBox="0 0 24 24" class="size-7 text-accent" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 12h1M7 8v8M11 5v14M15 8v8M19 10v4"/></svg>
+          <h3 class="mt-4 font-semibold">Noise control</h3>
+          <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Noise Cancellation, Standard or Transparent in one click, with the current mode shown in the menu bar.</p>
+        </div>
+        <div class="rounded-2xl bg-zinc-50 p-6 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
+          <svg viewBox="0 0 24 24" class="size-7 text-accent" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 3v18M12 3v18M18 3v18"/><circle cx="6" cy="15" r="2" fill="currentColor"/><circle cx="12" cy="8" r="2" fill="currentColor"/><circle cx="18" cy="13" r="2" fill="currentColor"/></svg>
+          <h3 class="mt-4 font-semibold">EQ presets and Custom EQ</h3>
+          <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Normal, Rock, Pop, Classical, Jazz and Country, or shape 10 bands from 31 Hz to 16 kHz yourself.</p>
+        </div>
+        <div class="rounded-2xl bg-zinc-50 p-6 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
+          <svg viewBox="0 0 24 24" class="size-7 text-accent" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="currentColor"/><circle cx="12" cy="12" r="6.5" opacity=".6"/><circle cx="12" cy="12" r="10" opacity=".3"/></svg>
+          <h3 class="mt-4 font-semibold">Touch controls</h3>
+          <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Choose what single, double and triple tap do on each bud. Saved on the earbuds.</p>
+        </div>
+        <div class="rounded-2xl bg-zinc-50 p-6 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
+          <svg viewBox="0 0 24 24" class="size-7 text-accent" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="15" rx="2"/><path d="M3 8.5h18M7 13h4M7 16h7"/></svg>
+          <h3 class="mt-4 font-semibold">Per-app automations</h3>
+          <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Transparent while FaceTime is open, Low Latency for a game. Switches back when the app quits.</p>
+        </div>
+        <div class="rounded-2xl bg-zinc-50 p-6 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
+          <p class="text-xl font-semibold text-accent" aria-hidden="true">⌃⌥N</p>
+          <h3 class="mt-3 font-semibold">Keyboard shortcut and links</h3>
+          <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Switch the noise mode from any app, or use <code class="text-xs">airbuds://</code> links from Shortcuts and scripts.</p>
+        </div>
+        <div class="rounded-2xl bg-zinc-50 p-6 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
+          <svg viewBox="0 0 24 24" class="size-7 text-accent" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>
+          <h3 class="mt-4 font-semibold">Battery alerts</h3>
+          <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">A notification at 20% and again at 10%, and when a bud or the case is fully charged.</p>
+        </div>
+        <div class="rounded-2xl bg-zinc-50 p-6 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
+          <svg viewBox="0 0 24 24" class="size-7 text-accent" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>
+          <h3 class="mt-4 font-semibold">Low Latency</h3>
+          <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Game mode for tighter audio sync in games and video.</p>
+        </div>
+        <div class="rounded-2xl bg-zinc-50 p-6 ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-800">
+          <svg viewBox="0 0 24 24" class="size-7 text-accent" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7l10 10-5 4V3l5 4L7 17"/></svg>
+          <h3 class="mt-4 font-semibold">Connect, rename, device info</h3>
+          <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Connect and disconnect without Bluetooth settings, rename your earbuds, and see the firmware version.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screens -->
+    <section class="bg-zinc-50 py-20 dark:bg-zinc-900/50">
+      <div class="mx-auto max-w-5xl px-4 sm:px-6">
+        <h2 class="text-center text-3xl font-bold tracking-tight sm:text-4xl">Feels at home on macOS</h2>
+        <p class="mx-auto mt-3 max-w-2xl text-center text-zinc-600 dark:text-zinc-400">
+          Native Swift and SwiftUI, in light and dark mode, with your system accent color.
+        </p>
+        <div class="mt-12 grid justify-items-center gap-10 sm:grid-cols-2">
+          <figure class="max-w-[300px]">
+            <picture>
+              <source srcset="screenshots/battery-dark.png" media="(prefers-color-scheme: dark)">
+              <img src="screenshots/battery-light.png" width="300" height="248" alt="Battery page with a chart of this listening session" loading="lazy" class="rounded-xl shadow-xl shadow-zinc-900/10 ring-1 ring-zinc-900/5 dark:ring-white/10">
+            </picture>
+            <figcaption class="mt-4 text-sm text-zinc-600 dark:text-zinc-400"><b class="text-zinc-900 dark:text-white">Battery.</b> Each bud's level since you started listening, and time left for each.</figcaption>
+          </figure>
+          <figure class="max-w-[300px]">
+            <picture>
+              <source srcset="screenshots/eq-custom-dark.png" media="(prefers-color-scheme: dark)">
+              <img src="screenshots/eq-custom-light.png" width="300" height="459" alt="Equalizer with Custom selected and ten band sliders" loading="lazy" class="rounded-xl shadow-xl shadow-zinc-900/10 ring-1 ring-zinc-900/5 dark:ring-white/10">
+            </picture>
+            <figcaption class="mt-4 text-sm text-zinc-600 dark:text-zinc-400"><b class="text-zinc-900 dark:text-white">Custom EQ.</b> Drag each of 10 bands up or down by up to 8 dB.</figcaption>
+          </figure>
+          <figure class="max-w-[300px]">
+            <picture>
+              <source srcset="screenshots/touch-dark.png" media="(prefers-color-scheme: dark)">
+              <img src="screenshots/touch-light.png" width="300" height="262" alt="Touch Controls for each bud" loading="lazy" class="rounded-xl shadow-xl shadow-zinc-900/10 ring-1 ring-zinc-900/5 dark:ring-white/10">
+            </picture>
+            <figcaption class="mt-4 text-sm text-zinc-600 dark:text-zinc-400"><b class="text-zinc-900 dark:text-white">Touch controls.</b> Play/pause, tracks, volume, calls or switching the noise mode.</figcaption>
+          </figure>
+          <figure class="max-w-[300px]">
+            <picture>
+              <source srcset="screenshots/disconnected-dark.png" media="(prefers-color-scheme: dark)">
+              <img src="screenshots/disconnected-light.png" width="300" height="150" alt="Not connected, with paired earbuds and a Connect button" loading="lazy" class="rounded-xl shadow-xl shadow-zinc-900/10 ring-1 ring-zinc-900/5 dark:ring-white/10">
+            </picture>
+            <figcaption class="mt-4 text-sm text-zinc-600 dark:text-zinc-400"><b class="text-zinc-900 dark:text-white">One-click connect.</b> Your paired earbuds, ready to connect to this Mac.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- Install -->
+    <section id="install" class="mx-auto max-w-3xl scroll-mt-20 px-4 py-20 sm:px-6">
+      <h2 class="text-center text-3xl font-bold tracking-tight sm:text-4xl">Install in a minute</h2>
+      <ol class="mt-10 space-y-6">
+        <li class="flex gap-4">
+          <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">1</span>
+          <div>
+            <p class="font-semibold">Download and drag to Applications</p>
+            <p class="mt-1 text-zinc-600 dark:text-zinc-400">Get <a href="{{DMG_URL}}" class="font-medium text-accent hover:underline">AirBuds-{{VERSION}}.dmg</a>, open it and drag <b>AirBuds</b> into <b>Applications</b>.</p>
+          </div>
+        </li>
+        <li class="flex gap-4">
+          <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">2</span>
+          <div class="min-w-0">
+            <p class="font-semibold">Allow it to open</p>
+            <p class="mt-1 text-zinc-600 dark:text-zinc-400">
+              AirBuds isn't notarized by Apple, so macOS blocks the first launch. Open
+              <b>System Settings → Privacy &amp; Security</b> and click <b>Open Anyway</b>, or run:
+            </p>
+            <pre class="mt-3 overflow-x-auto rounded-lg bg-zinc-900 px-4 py-3 text-sm text-zinc-100 select-all dark:bg-black dark:ring-1 dark:ring-zinc-800"><code>xattr -dr com.apple.quarantine "/Applications/AirBuds.app"</code></pre>
+          </div>
+        </li>
+        <li class="flex gap-4">
+          <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">3</span>
+          <div>
+            <p class="font-semibold">Allow Bluetooth and connect your earbuds</p>
+            <p class="mt-1 text-zinc-600 dark:text-zinc-400">Click <b>Allow</b> when macOS asks for Bluetooth access. Pair your earbuds in System Settings as usual, then click the earbuds icon in the menu bar.</p>
+          </div>
+        </li>
+      </ol>
+      <p class="mt-8 text-center text-sm text-zinc-500">
+        Released {{RELEASE_DATE}} ·
+        <a href="{{RELEASE_URL}}" class="text-accent hover:underline">Release notes and checksums</a> ·
+        <a href="{{REPO_URL}}/releases" class="text-accent hover:underline">All versions</a>
+      </p>
+    </section>
+
+    <!-- Supported earbuds -->
+    <section class="border-t border-zinc-200 dark:border-zinc-800">
+      <div class="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+        <h2 class="text-center text-2xl font-bold tracking-tight">Supported earbuds</h2>
+        <p class="mt-3 text-center text-zinc-600 dark:text-zinc-400">Hoco earbuds built on Jieli chips, which covers most of the range.</p>
+        <div class="mt-8 overflow-hidden rounded-xl ring-1 ring-zinc-200 dark:ring-zinc-800">
+          <table class="w-full text-left text-sm">
+            <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
+              <tr><td class="px-4 py-3 font-medium">HOCO EQ34 Plus ANC</td><td class="px-4 py-3 text-right"><span class="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/40 dark:text-green-300">Tested</span></td></tr>
+              <tr><td class="px-4 py-3 font-medium">Other Hoco models</td><td class="px-4 py-3 text-right"><span class="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">Should work</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-4 text-center text-sm text-zinc-500">
+          Model not connecting? <a href="{{REPO_URL}}/issues" class="text-accent hover:underline">Open an issue</a> and it can be added.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-zinc-200 dark:border-zinc-800">
+    <div class="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 px-4 py-8 text-sm text-zinc-500 sm:flex-row sm:px-6">
+      <p>AirBuds {{VERSION}} · MIT License · Not affiliated with Hoco or Apple.</p>
+      <div class="flex gap-5">
+        <a href="{{REPO_URL}}" class="hover:text-zinc-900 dark:hover:text-white">GitHub</a>
+        <a href="{{REPO_URL}}/blob/main/docs/ARCHITECTURE.md" class="hover:text-zinc-900 dark:hover:text-white">How it works</a>
+        <a href="{{REPO_URL}}/issues" class="hover:text-zinc-900 dark:hover:text-white">Issues</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

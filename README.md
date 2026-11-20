@@ -204,6 +204,12 @@ git push origin v0.2.0
 
 You can also start it by hand from the **Actions** tab (Release → Run workflow).
 
+When the release is published, the **Website** workflow (`pages.yml`) rebuilds
+the landing page in `site/` so its download button points at the new DMG. It
+also runs when `site/` or the screenshots change on `main`. To preview it
+locally: `scripts/build-site.sh && python3 -m http.server -d _site`. GitHub
+Pages must be set to **Source: GitHub Actions** once (Settings → Pages).
+
 #### Automatic updates (Sparkle)
 
 Each release also publishes `appcast.xml`, the feed installed copies check
@@ -234,7 +240,9 @@ Sources/AirBuds/           Menu bar app: App/, Bluetooth/, Drivers/<brand>/, Dev
                            Features/, Views/, Support/
 Sources/AirBudsKitChecks/  Self-checks for AirBudsKit, one file per area
 Resources/                 Info.plist and app icon
-scripts/                   build-app.sh, make-dmg.sh (+ DMG window art and layout), make-appcast.sh
+scripts/                   build-app.sh, make-dmg.sh (+ DMG window art and layout), make-appcast.sh,
+                           build-site.sh
+site/                      Landing page (HTML + Tailwind), deployed to GitHub Pages
 docs/                      Architecture, protocol, screenshots
 .github/workflows/         CI and release
 ```

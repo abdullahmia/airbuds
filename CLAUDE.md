@@ -19,12 +19,20 @@ AIRBUDS_DEBUG=1 AIRBUDS_SEND="c1 ffffffff; 07 ff ffffffff" swift run AirBuds
                                               # send raw RCSP commands after connecting (debug)
 scripts/build-app.sh [--universal] [--install]  # build/AirBuds.app with Sparkle embedded, ad-hoc signed
 scripts/make-dmg.sh 0.1.0                     # DMG, zip and checksums in dist/
+scripts/build-site.sh && python3 -m http.server -d _site   # landing page with the latest release filled in
 ```
 
 CI (`.github/workflows/ci.yml`) runs `swift build -c release --product AirBudsKitChecks`,
 the checks, then `scripts/build-app.sh --universal` and the DMG. Releases are cut by
 pushing a `v*` tag (`release.yml`). The version lives in `Resources/Info.plist`
 (`CFBundleShortVersionString`).
+
+The landing page is `site/index.html`: plain HTML with the Tailwind browser build,
+no other tooling. `{{VERSION}}`, `{{DMG_URL}}` and similar placeholders are filled from
+the latest GitHub release by `scripts/build-site.sh`. `pages.yml` deploys it to
+GitHub Pages; `release.yml` starts that workflow after each release, because
+events created with the workflow token don't trigger `on: release`. Images come from `docs/icon.png`
+and `docs/screenshots/`, so feature or UI changes may need the page's copy updated too.
 
 ## Tests: AirBudsKitChecks, not XCTest
 

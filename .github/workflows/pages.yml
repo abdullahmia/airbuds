@@ -1,0 +1,51 @@
+name: Website
+
+# Builds the landing page (site/) with the latest release filled in and deploys it
+# to GitHub Pages. Runs when the page or its images change on main, and after
+# every release: release.yml starts it with `gh workflow run`, because a release
+# published by a workflow's token doesn't trigger `on: release` workflows.
+#
+# One-time setup: Settings → Pages → Source: GitHub Actions.
+on:
+  push:
+    branches: [main]
+    paths:
+      - site/**
+      - docs/icon.png
+      - docs/screenshots/**
+      - scripts/build-site.sh
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/build-site.sh _site
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -80,6 +80,9 @@ Requested version: `$ARGUMENTS` (empty means you suggest one, see step 2).
    installed copies won't be offered the update. Say so clearly.
    If the run fails, show the failing step (`gh run view <id> --log-failed`) and stop.
    Don't delete or move the tag unless the user asks.
+   The release run then starts the Website workflow. Check it with
+   `gh run list --workflow pages.yml --limit 1` and `gh run watch <id> --exit-status`.
+   If it fails at "configure-pages", Pages isn't set to Source: GitHub Actions yet.
 
-8. **Report.** Give the version, the commit, the release URL and the assets, plus any
+8. **Report.** Give the version, the commit, the release URL, the website URL and the assets, plus any
    warnings (no appcast, screenshots not regenerated, docs out of date).
