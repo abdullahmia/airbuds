@@ -22,7 +22,7 @@ flowchart LR
         Views["Views/<br/>PanelView · MainView<br/>QuickSettings · Equalizer"]
         Controller["EarbudsController<br/>@Published DeviceState"]
         Confirm["ConfirmedSetting"]
-        Session["JieliSession<br/>commands ⇄ reports"]
+        Session["EarbudsDriver: JieliDriver<br/>commands ⇄ EarbudsReport"]
         Transport["JieliTransport<br/>CoreBluetooth · handshake"]
         Settings["AppSettings<br/>UserDefaults · SMAppService"]
         Extras["CommandRunner · HotKey · ModeHUD<br/>AutomationController<br/>BatteryNotifier · BatteryHistoryStore"]
@@ -58,13 +58,15 @@ flowchart LR
 Folders follow the layers above. Everything that belongs to one earbud protocol
 sits under a `Protocols/<name>/` (pure codecs, in AirBudsKit) or `Drivers/<name>/`
 (Bluetooth and session, in the app) folder, so a new brand gets one folder in
-each. For now `EarbudsController` still talks to `JieliSession` directly; a
-brand-neutral driver interface between them is the next step.
+each. `EarbudsController` only sees the `EarbudsDriver` protocol and
+`EarbudsReport`, never a brand's own types.
 
 ```
 Sources/AirBudsKit/
   Models/
-    Models.swift             Battery, NoiseMode (and cycling order), EqPreset, Capabilities
+    Models.swift             Battery, NoiseMode (and cycling order), EqPreset (and the standard six),
+                             Capabilities (and name rules)
+    EarbudsReport.swift      A reply or update in brand-neutral terms; every driver produces these
     Controls.swift           Touch controls and custom EQ values (Jieli's numbering, for now)
   Logic/
     LowBattery.swift         When to alert: 20% / 10% thresholds, re-arm after charging
@@ -77,6 +79,7 @@ Sources/AirBudsKit/
     JieliAuth.swift          Handshake (E1/SAFER+)
     JieliCodec.swift         Payload encoders and decoders (sys info, ADV info)
     Capabilities+Jieli.swift Capability learning from Jieli reports; which devices are Jieli
+    JieliReport.swift        Jieli sys info and ADV info as EarbudsReport
 Sources/AirBuds/
   App/
     main.swift               Entry point
@@ -89,10 +92,14 @@ Sources/AirBuds/
     ClassicConnection.swift  Connects and disconnects paired earbuds for audio (IOBluetooth)
     PairedEarbuds.swift      A paired device as the panel lists it
     KnownEarbuds.swift       Earbuds remembered by address, so renamed ones are still found
-  Drivers/Jieli/
-    JieliTransport.swift     Finds the BLE side of the connected buds, connects, runs the handshake,
+  Drivers/
+    EarbudsDriver.swift      The interface every brand implements: start/stop, reads, settings,
+                             and callbacks for connect, disconnect, reports and paired devices
+    Jieli/
+      JieliTransport.swift   Finds the BLE side of the connected buds, connects, runs the handshake,
                              relays bytes; lists paired earbuds
-    JieliSession.swift       Encodes reads and settings, decodes replies and pushed updates
+      JieliDriver.swift      EarbudsDriver for Jieli: encodes reads and settings, decodes replies
+                             and pushed updates, learns capabilities
   Device/
     EarbudsController.swift  All device state and every setter
     DeviceState.swift        Plain value types the UI renders
@@ -119,6 +126,24 @@ Sources/AirBudsKitChecks/
   BatteryChecks.swift  CommandChecks.swift  AutomationChecks.swift
   Protocols/JieliChecks.swift  Protocol checks on bytes captured from real earbuds
 ```
+
+## Adding a brand
+
+1. **Protocol** in `Sources/AirBudsKit/Protocols/<Brand>/`: framing, payload
+   encoders and decoders, a conversion to `EarbudsReport`, and capability
+   learning. No Bluetooth here, so it can be checked on captured bytes.
+2. **Checks** in `Sources/AirBudsKitChecks/Protocols/<Brand>Checks.swift`, called
+   from `main.swift`.
+3. **Driver** in `Sources/AirBuds/Drivers/<Brand>/`: a class that implements
+   `EarbudsDriver`, plus its transport (BLE, or RFCOMM through IOBluetooth).
+4. **Pick it**: today `EarbudsController(driver:)` gets `JieliDriver()` by
+   default. With a second brand, a small registry that asks each driver whether
+   it supports a paired device would choose instead, and device discovery
+   (now inside `JieliTransport`) would move to `Bluetooth/` so drivers share it.
+
+Still in Jieli's terms, to revisit when a second brand needs it: EQ preset ids
+(`EqPreset.standard`), the Custom EQ slot (`CustomEq.id`, mode 6) and touch
+function numbers (`TouchFunction`). A driver maps its own values to these.
 
 ## How a connection comes up
 

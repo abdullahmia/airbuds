@@ -68,7 +68,7 @@ final class CommandRunner {
         } else if let on = changes.lowLatency {
             show(HUDMessage(symbol: "bolt.fill", title: on ? "Low Latency On" : "Low Latency Off", detail: detail))
         } else if let id = changes.eqPreset,
-                  let preset = JieliCodec.eqPresets.first(where: { $0.id == id }) {
+                  let preset = EqPreset.standard.first(where: { $0.id == id }) {
             show(HUDMessage(symbol: EqualizerView.symbol(for: preset.key), title: preset.label, detail: detail))
         }
     }

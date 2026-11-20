@@ -1,5 +1,6 @@
 // High-level earbud state and every setting the panel can change. The protocol
-// work happens in JieliSession; this keeps the state the UI renders.
+// work happens in an EarbudsDriver (Jieli for now); this keeps the state the UI
+// renders.
 //
 // Setters ignore requests while a previous change of the same kind is still in
 // flight, so rapid clicks can't queue up commands on the earbuds. Runs on the
@@ -21,7 +22,7 @@ final class EarbudsController: ObservableObject {
     /// Custom EQ changes are sent once the slider rests this long.
     private static let customEqDelay: TimeInterval = 0.12
 
-    private let session = JieliSession()
+    private let driver: EarbudsDriver
     private let classic = ClassicConnection()
     private var batteryTimer: Timer?
     private let customEqTimer = Delayed()
@@ -29,45 +30,45 @@ final class EarbudsController: ObservableObject {
     private var customEqRestored = false
 
     private lazy var noise = ConfirmedSetting<NoiseMode>(
-        read: { [unowned self] in self.session.readNoiseMode() },
+        read: { [unowned self] in self.driver.readNoiseMode() },
         onTimeout: { [unowned self] in self.state.noisePending = false }
     )
     private lazy var eqConfirm = ConfirmedSetting<Int>(
-        read: { [unowned self] in self.session.readEq() },
+        read: { [unowned self] in self.driver.readEq() },
         onTimeout: { [unowned self] in self.state.eq.pending = false }
     )
     private lazy var lowLatencyConfirm = ConfirmedSetting<Bool>(
-        read: { [unowned self] in self.session.readLowLatency() },
+        read: { [unowned self] in self.driver.readLowLatency() },
         onTimeout: { [unowned self] in self.state.quick.lowLatencyPending = false }
     )
     private lazy var nameConfirm = ConfirmedSetting<String>(
-        read: { [unowned self] in self.session.readName() },
+        read: { [unowned self] in self.driver.readName() },
         onTimeout: { [unowned self] in self.state.namePending = false }
     )
     /// Target: the changed gesture; a report matches when it contains it.
     private lazy var touchConfirm = ConfirmedSetting<[TouchControl]>(
-        read: { [unowned self] in self.session.readTouchControls() },
+        read: { [unowned self] in self.driver.readTouchControls() },
         matches: { report, target in Set(target).isSubset(of: Set(report)) },
         onTimeout: { [unowned self] in self.state.touchPending = false }
     )
 
     private var caps: Capabilities { state.capabilities }
 
-    init() {
-        session.onConnected = { [unowned self] name, address, firmware in
+    init(driver: EarbudsDriver = JieliDriver()) {
+        self.driver = driver
+        driver.onConnected = { [unowned self] name, address, firmware in
             self.didConnect(name: name, address: address, firmware: firmware)
         }
-        session.onDisconnected = { [unowned self] in self.didDisconnect() }
-        session.onSysInfo = { [unowned self] info in self.onSysInfo(info) }
-        session.onAdvInfo = { [unowned self] info in self.onAdvInfo(info) }
-        session.onPairedChanged = { [unowned self] devices in self.paired = devices }
+        driver.onDisconnected = { [unowned self] in self.didDisconnect() }
+        driver.onReport = { [unowned self] report, capabilities in self.onReport(report, capabilities: capabilities) }
+        driver.onPairedChanged = { [unowned self] devices in self.paired = devices }
         classic.onFinished = { [unowned self] address, success in
             if self.connecting == address { self.connecting = nil }
             if !success { self.connectFailed = address }
         }
     }
 
-    func start() { session.start() }
+    func start() { driver.start() }
 
     #if DEBUG
     func setSampleState(_ sample: DeviceState) { state = sample }
@@ -76,11 +77,11 @@ final class EarbudsController: ObservableObject {
 
     func stop() {
         resetTimers()
-        session.stop()
+        driver.stop()
     }
 
     func refreshBattery() {
-        if state.connected { session.readBattery() }
+        if state.connected { driver.readBattery() }
     }
 
     // MARK: - Connection
@@ -99,7 +100,7 @@ final class EarbudsController: ObservableObject {
     /// Disconnects the earbuds from this Mac, audio included.
     func disconnect() {
         guard state.connected, let address = state.address else { return }
-        session.dropLink()
+        driver.dropLink()
         _ = classic.disconnect(address: address)
     }
 
@@ -107,7 +108,7 @@ final class EarbudsController: ObservableObject {
 
     func setNoiseMode(_ mode: NoiseMode) {
         guard state.connected, caps.noiseControl, !noise.pending, mode != state.noiseMode else { return }
-        session.setNoiseMode(mode)
+        driver.setNoiseMode(mode)
         noise.begin(mode)
         state.noiseMode = mode
         state.noisePending = true
@@ -115,7 +116,7 @@ final class EarbudsController: ObservableObject {
 
     func setLowLatency(_ on: Bool) {
         guard state.connected, caps.lowLatency, !lowLatencyConfirm.pending, state.quick.lowLatency != on else { return }
-        session.setLowLatency(on)
+        driver.setLowLatency(on)
         lowLatencyConfirm.begin(on)
         state.quick.lowLatency = on
         state.quick.lowLatencyPending = true
@@ -124,9 +125,9 @@ final class EarbudsController: ObservableObject {
     /// Renames the earbuds. False if the name isn't valid (empty or too long).
     @discardableResult
     func rename(_ name: String) -> Bool {
-        guard let valid = JieliCodec.validName(name) else { return false }
+        guard let valid = caps.validName(name) else { return false }
         guard state.connected, caps.rename, !nameConfirm.pending, valid != state.name else { return true }
-        session.setName(valid)
+        driver.setName(valid)
         nameConfirm.begin(valid)
         state.name = valid
         state.namePending = true
@@ -139,7 +140,7 @@ final class EarbudsController: ObservableObject {
         guard state.connected, caps.touchControls, !touchConfirm.pending else { return }
         let control = TouchControl(bud: bud, gesture: gesture, function: function)
         guard !state.touchControls.contains(control) else { return }
-        session.setTouchControl(control)
+        driver.setTouchControl(control)
         touchConfirm.begin([control])
         state.touchControls = state.touchControls.map {
             $0.bud == bud && $0.gesture == gesture ? control : $0
@@ -182,7 +183,7 @@ final class EarbudsController: ObservableObject {
 
     private func sendCustomEq() {
         customEqTimer.cancel()
-        session.setCustomEq(gains: state.eq.customGains)
+        driver.setCustomEq(gains: state.eq.customGains)
     }
 
     private var customGainsKey: String? { state.address.map { "customEq.\($0)" } }
@@ -193,13 +194,13 @@ final class EarbudsController: ObservableObject {
     }
 
     /// Saved gains for these earbuds, else the earbuds' own Custom slot, else flat.
-    private func loadCustomGains(table: [UInt8]?) {
+    private func loadCustomGains(stored: [Int]?) {
         let bands = caps.eqBands.count
         guard bands > 0, state.eq.customGains.count != bands else { return }
         if let key = customGainsKey, let saved = UserDefaults.standard.array(forKey: key) as? [Int], saved.count == bands {
             state.eq.customGains = saved
-        } else if let table, table.count == bands {
-            state.eq.customGains = table.map { Int(Int8(bitPattern: $0)) }
+        } else if let stored, stored.count == bands {
+            state.eq.customGains = stored
         } else {
             state.eq.customGains = Array(repeating: 0, count: bands)
         }
@@ -208,7 +209,7 @@ final class EarbudsController: ObservableObject {
     func setEqPreset(_ id: Int) {
         guard state.connected, !eqConfirm.pending, id != state.eq.preset,
               caps.eqPresets.contains(where: { $0.id == id }) else { return }
-        session.setEqPreset(id)
+        driver.setEqPreset(id)
         eqConfirm.begin(id)
         state.eq.preset = id
         state.eq.pending = true
@@ -243,38 +244,33 @@ final class EarbudsController: ObservableObject {
 
     // MARK: - Reports
 
-    private func onSysInfo(_ info: JieliSysInfo) {
+    private func onReport(_ report: EarbudsReport, capabilities: Capabilities) {
         guard state.connected else { return }
-        state.capabilities.learn(from: info)
-        if let mode = info.noiseMode, noise.accept(mode) {
+        state.capabilities = capabilities
+        if let battery = report.battery { state.battery = battery }
+        if let name = report.name, !name.isEmpty, nameConfirm.accept(name) {
+            state.name = name
+            state.namePending = false
+        }
+        if let mode = report.noiseMode, noise.accept(mode) {
             state.noiseMode = mode
             state.noisePending = false
         }
-        if let preset = info.eqPreset, eqConfirm.accept(preset) {
+        if let preset = report.eqPreset, eqConfirm.accept(preset) {
             state.eq.preset = preset
             state.eq.pending = false
         }
-        if !info.eqFrequencies.isEmpty { loadCustomGains(table: info.eqGains[CustomEq.id]) }
+        loadCustomGains(stored: report.customEqGains)
         // Custom was left on: the earbuds may have dropped the gains, so send ours.
         if state.eq.preset == CustomEq.id, !customEqRestored, !state.eq.customGains.isEmpty {
             customEqRestored = true
             sendCustomEq()
         }
-    }
-
-    private func onAdvInfo(_ info: JieliAdvInfo) {
-        guard state.connected else { return }
-        state.capabilities.learn(from: info)
-        if let battery = info.battery { state.battery = battery }
-        if let name = info.name, !name.isEmpty, nameConfirm.accept(name) {
-            state.name = name
-            state.namePending = false
-        }
-        if let controls = info.touchControls, touchConfirm.accept(controls) {
+        if let controls = report.touchControls, touchConfirm.accept(controls) {
             state.touchControls = controls
             state.touchPending = false
         }
-        if let on = info.lowLatency, lowLatencyConfirm.accept(on) {
+        if let on = report.lowLatency, lowLatencyConfirm.accept(on) {
             state.quick.lowLatency = on
             state.quick.lowLatencyPending = false
         }
@@ -290,7 +286,7 @@ final class EarbudsController: ObservableObject {
         fresh.address = address
         fresh.quick.firmware = firmware
         state = fresh
-        session.readAll()
+        driver.readAll()
 
         batteryTimer = Timer.scheduledTimer(withTimeInterval: Self.batteryPoll, repeats: true) { [weak self] _ in
             self?.refreshBattery()

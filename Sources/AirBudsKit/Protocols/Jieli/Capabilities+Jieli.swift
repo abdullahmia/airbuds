@@ -19,7 +19,10 @@ extension Capabilities {
 
     public mutating func learn(from info: JieliAdvInfo) {
         if info.lowLatency != nil { lowLatency = true }
-        if info.name != nil { rename = true }
+        if info.name != nil {
+            rename = true
+            maxNameBytes = JieliCodec.maxNameBytes
+        }
         if let controls = info.touchControls, !controls.isEmpty { touchControls = true }
     }
 

@@ -17,6 +17,7 @@ extension EarbudsController {
         s.capabilities.transparency = true
         s.capabilities.lowLatency = true
         s.capabilities.rename = true
+        s.capabilities.maxNameBytes = 20
         s.capabilities.touchControls = true
         s.capabilities.eqBands = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
         s.eq.customGains = [4, 3, 1, 0, -1, 0, 1, 2, 3, 2]
@@ -25,7 +26,7 @@ extension EarbudsController {
                 s.touchControls.append(TouchControl(bud: bud, gesture: gesture, function: function))
             }
         }
-        s.capabilities.eqPresets = JieliCodec.eqPresets
+        s.capabilities.eqPresets = EqPreset.standard
         s.battery.left = BatteryLevel(level: 85, charging: false)
         s.battery.right = BatteryLevel(level: 18, charging: false)
         s.battery.case = BatteryLevel(level: 60, charging: true)

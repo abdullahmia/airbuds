@@ -138,9 +138,10 @@ private struct NameRow: View {
     }
 
     private func editor(_ text: String) -> some View {
-        let valid = JieliCodec.validName(text)
+        let caps = device.state.capabilities
+        let valid = caps.validName(text)
         let bytes: Int = text.trimmingCharacters(in: .whitespacesAndNewlines).utf8.count
-        let tooLong: Bool = bytes > JieliCodec.maxNameBytes
+        let tooLong: Bool = bytes > caps.maxNameBytes
         return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 TextField("Name", text: Binding(get: { draft.value ?? "" }, set: { draft.value = $0 }))
@@ -155,7 +156,7 @@ private struct NameRow: View {
                     .keyboardShortcut(.defaultAction)
                     .disabled(valid == nil)
             }
-            Text(tooLong ? "Too long: \(bytes) of \(JieliCodec.maxNameBytes) bytes."
+            Text(tooLong ? "Too long: \(bytes) of \(caps.maxNameBytes) bytes."
                          : "Other devices see the new name after the earbuds restart.")
                 .font(.system(size: 10))
                 .foregroundStyle(tooLong ? Color.red : Color.secondary)

@@ -103,10 +103,26 @@ func jieliChecks() {
     check(hoco.noiseControl && hoco.transparency, "hoco noise control learned")
     check(hoco.lowLatency && hoco.eqPresets.count == 6, "hoco low latency and presets learned")
     check(hoco.rename, "rename offered once the earbuds report their name")
+    check(Capabilities().validName("Buds") == nil, "no name is valid before the earbuds report theirs")
+    check(hoco.maxNameBytes == 20 && hoco.validName("  My Buds ") == "My Buds", "jieli name rules learned, trimmed")
+    check(hoco.validName(String(repeating: "a", count: 21)) == nil, "jieli: 21-byte name refused")
     check(hoco.touchControls, "touch controls learned from the adv capture")
     check(hoco.eqBands.isEmpty, "no custom eq without a table that has a custom slot")
     hoco.learn(from: table)
     check(hoco.eqBands.count == 10, "custom eq offered with a 10-band table")
     check(Capabilities.isJieli(deviceName: "HOCO EQ34 Plus ANC") && !Capabilities.isJieli(deviceName: "AirPods Pro"),
           "jieli name match")
+
+    section("Jieli reports")
+    let sysReport = sys.report
+    check(sysReport.noiseMode == .transparency && sysReport.eqPreset == 1, "sys info report: noise mode and eq")
+    check(sysReport.battery == nil && sysReport.customEqGains == nil, "sys info report: nothing else")
+    let tableGains: [Int]? = table.report.customEqGains
+    check(tableGains == [0, 0, 0, 4, 4, 4, 0, 2, 3, 4], "custom slot gains reported in dB")
+    let signedGains: [Int]? = JieliCodec.decodeSysInfo(bytes("ff 09 0c 02 00 1f 00 3e 06 fe 02")).report.customEqGains
+    check(signedGains == [-2, 2], "custom slot gains are signed")
+    let advReport = (adv ?? JieliAdvInfo()).report
+    check(advReport.battery?.left?.level == 100 && advReport.name == "HOCO EQ34 Plus ANC", "adv report: battery and name")
+    check(advReport.lowLatency == false && advReport.touchControls?.count == 6, "adv report: low latency and touch controls")
+    check(advReport.noiseMode == nil && advReport.eqPreset == nil, "adv report: no sys info fields")
 }

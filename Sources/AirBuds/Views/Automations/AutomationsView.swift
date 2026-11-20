@@ -97,7 +97,7 @@ private struct RuleSection: View {
                 Picker("Equalizer", selection: field(\.eqPreset)) {
                     Text("No Change").tag(Int?.none)
                     Divider()
-                    ForEach(JieliCodec.eqPresets) { preset in
+                    ForEach(EqPreset.standard) { preset in
                         Text(preset.label).tag(Int?.some(preset.id))
                     }
                 }

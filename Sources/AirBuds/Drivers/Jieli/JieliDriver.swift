@@ -1,14 +1,13 @@
-// The Jieli (Hoco) side of the controller: turns reads and settings into RCSP
-// frames and decodes what comes back. Runs on the main thread.
+// The Jieli (Hoco) driver: turns reads and settings into RCSP frames and
+// decodes what comes back into EarbudsReport. Runs on the main thread.
 
 import Foundation
 import IOBluetooth
 import AirBudsKit
 
-final class JieliSession {
+final class JieliDriver: EarbudsDriver {
     var onConnected: ((_ name: String, _ address: String, _ firmware: String?) -> Void)?
-    var onSysInfo: ((JieliSysInfo) -> Void)?
-    var onAdvInfo: ((JieliAdvInfo) -> Void)?
+    var onReport: ((_ report: EarbudsReport, _ capabilities: Capabilities) -> Void)?
     var onDisconnected: (() -> Void)?
     var onPairedChanged: (([PairedEarbuds]) -> Void)?
 
@@ -18,14 +17,15 @@ final class JieliSession {
     /// What to send to switch noise mode / EQ preset, as the earbuds reported it.
     private var noiseEntries: [NoiseMode: [UInt8]] = [:]
     private var eqGains: [Int: [UInt8]] = [:]
-
-    var isConnected: Bool { transport.isConnected }
+    /// Learned from the replies since connecting.
+    private var capabilities = Capabilities()
 
     init() {
         transport.onConnected = { [unowned self] name, address in
             parser.reset()
             noiseEntries = [:]
             eqGains = [:]
+            capabilities = Capabilities()
             onConnected?(name, address, Self.firmware(address: address))
             #if DEBUG
             sendDebugCommands()
@@ -103,9 +103,12 @@ final class JieliSession {
             let info = JieliCodec.decodeSysInfo(frame.body)
             noiseEntries.merge(info.noiseModes) { $1 }
             eqGains.merge(info.eqGains) { $1 }
-            onSysInfo?(info)
+            capabilities.learn(from: info)
+            onReport?(info.report, capabilities)
         case (false, Rcsp.getAdvInfo):
-            onAdvInfo?(JieliCodec.decodeAdvInfo(frame.body))
+            let info = JieliCodec.decodeAdvInfo(frame.body)
+            capabilities.learn(from: info)
+            onReport?(info.report, capabilities)
         case (true, Rcsp.advChanged):
             readBattery() // the status beacon changed; battery is the part we show
         case (true, Rcsp.advRequest):

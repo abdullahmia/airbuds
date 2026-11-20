@@ -45,15 +45,9 @@ public enum JieliCodec {
     /// Work mode 2 is "game mode"; 1 is normal.
     static let gameMode: UInt8 = 2
 
-    /// Jieli's standard presets (the earbuds also list unused slots after these).
-    public static let eqPresets = [
-        EqPreset(id: 0, key: "balanced", label: "Normal"),
-        EqPreset(id: 1, key: "rock", label: "Rock"),
-        EqPreset(id: 2, key: "pop", label: "Pop"),
-        EqPreset(id: 3, key: "classical", label: "Classical"),
-        EqPreset(id: 4, key: "jazz", label: "Jazz"),
-        EqPreset(id: 5, key: "country", label: "Country"),
-    ]
+    /// Jieli's presets are the standard six, with the same ids (the earbuds also
+    /// list unused slots after these).
+    public static let eqPresets = EqPreset.standard
 
     /// Attribute bit mask, big-endian.
     static func mask(_ attributes: [UInt8]) -> [UInt8] {
