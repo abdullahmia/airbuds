@@ -278,12 +278,3 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
     }
 }
-
-#if DEBUG
-MainActor.assumeIsolated { DebugSnapshots.runIfRequested() }
-#endif
-
-let app = NSApplication.shared
-let delegate = AppDelegate()
-app.delegate = delegate
-app.run()

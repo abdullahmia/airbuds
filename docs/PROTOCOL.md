@@ -2,7 +2,7 @@
 
 How AirBuds talks to Hoco earbuds. Hoco builds its earbuds on Zhuhai Jieli
 chips (Bluetooth company id `0x05D6`), which speak Jieli's **RCSP** control
-protocol. Everything here is implemented in `Sources/AirBudsKit/Jieli.swift`
+protocol. Everything here is implemented in `Sources/AirBudsKit/Protocols/Jieli/`
 and was verified against a **HOCO EQ34 Plus ANC** on firmware 2.4.0.
 
 ## Transport

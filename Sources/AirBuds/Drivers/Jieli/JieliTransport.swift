@@ -1,6 +1,6 @@
 // BLE transport for Jieli-based earbuds (Hoco): finds the BLE side of a connected,
 // paired classic device, opens the RCSP service, passes the handshake and then
-// relays raw bytes. Framing and payloads live in AirBudsKit/Jieli.swift.
+// relays raw bytes. Framing and payloads live in AirBudsKit/Protocols/Jieli/.
 //
 // It only scans while a supported device is connected for audio, so there's no
 // BLE scanning the rest of the time. CoreBluetooth calls back on the main queue.
@@ -12,15 +12,6 @@ import CoreBluetooth
 import Foundation
 import IOBluetooth
 import AirBudsKit
-
-/// A paired pair of supported earbuds, as the panel lists them.
-struct PairedEarbuds: Equatable, Identifiable {
-    var id: String { address }
-    let name: String
-    let address: String
-    /// Connected for audio (classic Bluetooth).
-    let connected: Bool
-}
 
 final class JieliTransport: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     var onConnected: ((_ name: String, _ address: String) -> Void)?
@@ -353,20 +344,5 @@ final class JieliTransport: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         writer = nil
         target = nil
         phase = .idle
-    }
-}
-
-/// Addresses of earbuds that passed the handshake, so they're recognised after a rename.
-enum KnownEarbuds {
-    private static let key = "knownEarbuds"
-
-    static var addresses: Set<String> {
-        Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
-    }
-
-    static func remember(_ address: String) {
-        let lowered = address.lowercased()
-        guard !addresses.contains(lowered) else { return }
-        UserDefaults.standard.set(Array(addresses) + [lowered], forKey: key)
     }
 }

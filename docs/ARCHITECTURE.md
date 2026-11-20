@@ -18,7 +18,7 @@ The Swift package has three targets.
 flowchart LR
     subgraph App["AirBuds (menu bar app)"]
         direction TB
-        Main["main.swift<br/>AppDelegate · NSStatusItem · NSPopover"]
+        Main["App/<br/>AppDelegate · NSStatusItem · NSPopover"]
         Views["Views/<br/>PanelView · MainView<br/>QuickSettings · Equalizer"]
         Controller["EarbudsController<br/>@Published DeviceState"]
         Confirm["ConfirmedSetting"]
@@ -55,39 +55,69 @@ flowchart LR
 
 ## Source map
 
+Folders follow the layers above. Everything that belongs to one earbud protocol
+sits under a `Protocols/<name>/` (pure codecs, in AirBudsKit) or `Drivers/<name>/`
+(Bluetooth and session, in the app) folder, so a new brand gets one folder in
+each. For now `EarbudsController` still talks to `JieliSession` directly; a
+brand-neutral driver interface between them is the next step.
+
 ```
 Sources/AirBudsKit/
-  Jieli.swift              Handshake (E1/SAFER+), RCSP framing and parser, payload codecs, capability learning
-  Models.swift             Battery, NoiseMode (and cycling order), EqPreset, Capabilities
-  LowBattery.swift         When to alert: 20% / 10% thresholds, re-arm after charging
-  FullCharge.swift         When to say "fully charged": reaching 100% after charging below it
-  BatteryHistory.swift     Battery samples, sessions and the time-left estimate
-  Automation.swift         Per-app rules and the engine that applies and restores them
-  Commands.swift           airbuds:// link parsing
-  Controls.swift           Touch controls and custom EQ values (from Jieli's SDK)
+  Models/
+    Models.swift             Battery, NoiseMode (and cycling order), EqPreset, Capabilities
+    Controls.swift           Touch controls and custom EQ values (Jieli's numbering, for now)
+  Logic/
+    LowBattery.swift         When to alert: 20% / 10% thresholds, re-arm after charging
+    FullCharge.swift         When to say "fully charged": reaching 100% after charging below it
+    BatteryHistory.swift     Battery samples, sessions and the time-left estimate
+    Automation.swift         Per-app rules and the engine that applies and restores them
+    Commands.swift           airbuds:// link parsing
+  Protocols/Jieli/
+    Rcsp.swift               RCSP framing and parser (with an overview of the protocol)
+    JieliAuth.swift          Handshake (E1/SAFER+)
+    JieliCodec.swift         Payload encoders and decoders (sys info, ADV info)
+    Capabilities+Jieli.swift Capability learning from Jieli reports; which devices are Jieli
 Sources/AirBuds/
-  main.swift               App entry, status item, popover, right-click menu, link handling
-  JieliTransport.swift     Finds the BLE side of the connected buds, connects, runs the handshake, relays bytes;
-                           lists paired earbuds and remembers known ones
-  ClassicConnection.swift  Connects and disconnects paired earbuds for audio (IOBluetooth)
-  JieliSession.swift       Encodes reads and settings, decodes replies and pushed updates
-  EarbudsController.swift  All device state and every setter
-  ConfirmedSetting.swift   "Wait until the buds confirm" helper plus timer utilities
-  DeviceState.swift        Plain value types the UI renders
-  AppSettings.swift        Menu bar options, alerts, shortcut, automation rules, Open at Login
-  BatteryNotifier.swift    Posts low battery and fully charged notifications
-  BatteryHistoryStore.swift Records battery samples per device and saves them to Application Support
-  CommandRunner.swift      Runs the keyboard shortcut and airbuds:// links; waits for the buds if needed
-  AutomationController.swift Watches apps launching and quitting and applies automation rules
-  HotKey.swift             System-wide shortcut through Carbon's RegisterEventHotKey
-  ModeHUD.swift            The on-screen indicator under the menu bar icon
-  Updater.swift            Sparkle auto-update and "Check for Updates…"
-  MenuBarIcon.swift        The menu bar icon (SF "earbuds" symbol), with the noise mode beside it
-  Log.swift                Console logging; AIRBUDS_DEBUG=1 logs every packet
-  DebugSnapshots.swift     Debug only: renders every page to PNG (used for docs/screenshots)
-  Views/                   One file per panel page (Main, Battery, Equalizer with Custom EQ,
-                           Quick Settings, Touch Controls), shared
-                           components, and the Automations window
+  App/
+    main.swift               Entry point
+    AppDelegate.swift        Status item, popover, right-click menu, link handling
+    AppSettings.swift        Menu bar options, alerts, shortcut, automation rules, Open at Login
+    MenuBarIcon.swift        The menu bar icon (SF "earbuds" symbol), with the noise mode beside it
+    ModeHUD.swift            The on-screen indicator under the menu bar icon
+    Updater.swift            Sparkle auto-update and "Check for Updates…"
+  Bluetooth/                 Brand-neutral classic Bluetooth
+    ClassicConnection.swift  Connects and disconnects paired earbuds for audio (IOBluetooth)
+    PairedEarbuds.swift      A paired device as the panel lists it
+    KnownEarbuds.swift       Earbuds remembered by address, so renamed ones are still found
+  Drivers/Jieli/
+    JieliTransport.swift     Finds the BLE side of the connected buds, connects, runs the handshake,
+                             relays bytes; lists paired earbuds
+    JieliSession.swift       Encodes reads and settings, decodes replies and pushed updates
+  Device/
+    EarbudsController.swift  All device state and every setter
+    DeviceState.swift        Plain value types the UI renders
+    ConfirmedSetting.swift   "Wait until the buds confirm" helper
+  Features/
+    Battery/                 BatteryNotifier (low battery and fully charged notifications),
+                             BatteryHistoryStore (samples per device, saved to Application Support)
+    Automation/              AutomationController: watches apps and applies automation rules
+    Shortcuts/               CommandRunner (shortcut and airbuds:// links, waits for the buds),
+                             HotKey (system-wide shortcut through Carbon's RegisterEventHotKey)
+  Views/
+    Panel/                   One file per panel page (Main, Battery, Equalizer with Custom EQ,
+                             Quick Settings, Touch Controls) and PanelView, which switches them
+    Automations/             The Automations window
+    Components.swift         Building blocks shared by the pages and the indicator
+  Support/
+    Log.swift                Console logging; AIRBUDS_DEBUG=1 logs every packet
+    Timers.swift             Delayed and TimerBag one-shot timers
+  Debug/
+    DebugSnapshots.swift     Debug only: renders every page to PNG (used for docs/screenshots)
+Sources/AirBudsKitChecks/
+  main.swift                 Runs every check and prints the totals
+  Harness.swift              section, check and hex helpers
+  BatteryChecks.swift  CommandChecks.swift  AutomationChecks.swift
+  Protocols/JieliChecks.swift  Protocol checks on bytes captured from real earbuds
 ```
 
 ## How a connection comes up

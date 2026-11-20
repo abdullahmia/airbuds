@@ -228,9 +228,11 @@ copies aren't told about them. To try the feed locally, `scripts/make-appcast.sh
 ## Project layout
 
 ```
-Sources/AirBudsKit/        Earbud protocol, plus battery, automation and link logic (no UI)
-Sources/AirBuds/           Menu bar app: BLE transport, device state, SwiftUI panel
-Sources/AirBudsKitChecks/  Self-checks for AirBudsKit
+Sources/AirBudsKit/        No UI or Bluetooth: Models/, Logic/ (battery, automation, links),
+                           Protocols/<brand>/ (earbud protocol codecs)
+Sources/AirBuds/           Menu bar app: App/, Bluetooth/, Drivers/<brand>/, Device/,
+                           Features/, Views/, Support/
+Sources/AirBudsKitChecks/  Self-checks for AirBudsKit, one file per area
 Resources/                 Info.plist and app icon
 scripts/                   build-app.sh, make-dmg.sh (+ DMG window art and layout), make-appcast.sh
 docs/                      Architecture, protocol, screenshots

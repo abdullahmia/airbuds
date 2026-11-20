@@ -44,7 +44,7 @@ public struct EqPreset: Equatable, Identifiable {
 // MARK: - Capabilities
 
 /// What the connected earbuds support. Starts empty; the earbuds' own reports
-/// fill it in (see `learn` in Jieli.swift), so each model shows only its features.
+/// fill it in (see `learn` in Capabilities+Jieli.swift), so each model shows only its features.
 public struct Capabilities: Equatable {
     /// Noise cancellation (and Off).
     public var noiseControl = false
