@@ -6,6 +6,14 @@ import SwiftUI
 
 enum PanelPage: Equatable {
     case main, quickSettings, equalizer, battery, touchControls
+
+    /// Where Back (and Esc) goes from this page.
+    var parent: PanelPage {
+        switch self {
+        case .touchControls: return .quickSettings
+        default: return .main
+        }
+    }
 }
 
 final class PanelNavigation: ObservableObject {
@@ -39,8 +47,8 @@ struct PanelView: View {
         .padding(.vertical, 6)
         .animation(.easeOut(duration: 0.18), value: nav.page)
         .background(
-            // Esc returns to the main page.
-            Button("") { nav.page = .main }
+            // Esc goes back one page.
+            Button("") { nav.page = nav.page.parent }
                 .keyboardShortcut(.cancelAction)
                 .opacity(0)
         )
@@ -157,11 +165,10 @@ struct Tile: View {
 struct SubpageHeader: View {
     let title: String
     @EnvironmentObject var nav: PanelNavigation
-    var back: PanelPage = .main
 
     var body: some View {
         HStack(spacing: 4) {
-            Button { nav.page = back } label: {
+            Button { nav.page = nav.page.parent } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 13, weight: .semibold))
                     .frame(width: 26, height: 26)
