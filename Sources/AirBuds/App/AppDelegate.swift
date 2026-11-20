@@ -195,7 +195,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let noiseIcon = NSMenuItem(title: "Noise Mode in Menu Bar", action: #selector(toggleMenuBarNoiseMode), keyEquivalent: "")
         noiseIcon.target = self
         noiseIcon.state = settings.menuBarNoiseMode ? .on : .off
-        noiseIcon.toolTip = "Show Noise Cancellation or Transparency next to the icon"
+        noiseIcon.toolTip = "Show Noise Cancellation or Transparent next to the icon"
         menu.addItem(noiseIcon)
 
         menu.addItem(.separator())
@@ -216,7 +216,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                                   action: #selector(toggleNoiseShortcut), keyEquivalent: "")
         shortcut.target = self
         shortcut.state = settings.noiseShortcut ? .on : .off
-        shortcut.toolTip = "Press \(HotKey.noiseControl.display) anywhere to switch Noise Cancellation, Transparency and Off"
+        shortcut.toolTip = "Press \(HotKey.noiseControl.display) anywhere to switch Noise Cancellation, Standard and Transparent"
         if settings.noiseShortcut && hotKey == nil {
             shortcut.toolTip = "\(HotKey.noiseControl.display) is already used by another app"
         }

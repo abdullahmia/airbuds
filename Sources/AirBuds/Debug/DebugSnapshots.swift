@@ -123,7 +123,7 @@ enum DebugSnapshots {
                    dark: dark, to: "\(dir)/eq-custom-\(suffix).png")
             render(automations.background(Color(nsColor: .windowBackgroundColor)),
                    dark: dark, to: "\(dir)/automations-\(suffix).png")
-            let hud = Local(HUDMessage(symbol: NoiseMode.transparency.symbol, title: "Transparency", detail: "Noise Control"))
+            let hud = Local(HUDMessage(symbol: NoiseMode.transparency.symbol, title: NoiseMode.transparency.label, detail: "Noise Control"))
             render(HUDView(model: hud).padding(20), dark: dark, to: "\(dir)/hud-\(suffix).png")
 
             // README hero: the pages side by side, each as a floating panel.

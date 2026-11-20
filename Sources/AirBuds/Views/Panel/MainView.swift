@@ -242,10 +242,10 @@ private struct NoiseControlSection: View {
         VStack(spacing: 0) {
             SectionTitle("Noise Control")
             option(.anc)
+            option(.off)
             if caps.transparency {
                 option(.transparency)
             }
-            option(.off)
         }
     }
 

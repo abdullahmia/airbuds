@@ -215,7 +215,7 @@ final class EarbudsController: ObservableObject {
         state.eq.pending = true
     }
 
-    /// Switches to the next noise mode (NC → Transparency → Off) and returns it.
+    /// Switches to the next noise mode (NC → Standard → Transparent) and returns it.
     /// While a change is still unconfirmed, returns that change's target instead.
     /// nil when the earbuds have no noise control.
     @discardableResult

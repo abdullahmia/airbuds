@@ -2,8 +2,8 @@
 // Shortcuts' "Open URLs" action, `open` in Terminal, and so on).
 //
 //   airbuds://noise/anc            Noise Cancellation (also noise-cancellation, nc)
-//   airbuds://noise/transparency   Transparency
-//   airbuds://noise/off            Off
+//   airbuds://noise/transparent    Transparent (also transparency)
+//   airbuds://noise/standard       Standard: noise control off (also off)
 //   airbuds://noise/next           cycle to the next mode
 //   airbuds://eq/rock              EQ preset by name or number (0 = Normal)
 //   airbuds://low-latency/on       on, off or toggle
@@ -39,9 +39,9 @@ public enum AirBudsCommand: Equatable {
             self = .disconnect
         case ("noise", "anc"), ("noise", "nc"), ("noise", "noise-cancellation"), ("noise", "on"):
             self = .noise(.anc)
-        case ("noise", "transparency"):
+        case ("noise", "transparent"), ("noise", "transparency"):
             self = .noise(.transparency)
-        case ("noise", "off"):
+        case ("noise", "standard"), ("noise", "off"):
             self = .noise(.off)
         case ("noise", "next"), ("noise", "cycle"):
             self = .nextNoise

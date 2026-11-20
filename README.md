@@ -32,7 +32,7 @@ telemetry.
 - **Battery** for the left bud, right bud and case, with optional battery text in the menu bar
 - **Time left** estimate and a **battery chart** of your current listening session
 - **Low battery alerts** at 20% and again at 10%, without repeats, and **fully charged** alerts
-- **Noise control**: Noise Cancellation, Transparency or Off, with the current mode shown in the menu bar
+- **Noise control**: Noise Cancellation, Transparent or Standard, with the current mode shown in the menu bar
 - **Keyboard shortcut**: ⌃⌥N switches the noise mode from any app
 - **EQ presets**: Normal, Rock, Pop, Classical, Jazz and Country, plus a **10-band Custom EQ**
 - **Touch controls**: choose what single, double and triple tap do on each bud
@@ -96,7 +96,7 @@ off from the right-click menu.
 
 - **Open at Login**
 - **Battery in Menu Bar**: Icon Only, Left · Right, Average or Lowest
-- **Noise Mode in Menu Bar**: on by default. Shows the Noise Cancellation or Transparency symbol next to the icon.
+- **Noise Mode in Menu Bar**: on by default. Shows the Noise Cancellation or Transparent symbol next to the icon.
 - **Low Battery Alerts**: on by default. macOS asks for notification permission the first time your earbuds connect.
 - **Fully Charged Alerts**: on by default. Notifies when a bud or the case reaches 100% while charging.
 - **Noise Control Shortcut (⌃⌥N)**: on by default.
@@ -107,7 +107,7 @@ off from the right-click menu.
 **Keyboard shortcut**
 
 Press **⌃⌥N** (Control-Option-N) in any app to step through Noise
-Cancellation → Transparency → Off. A small indicator under the menu bar icon
+Cancellation → Standard → Transparent. A small indicator under the menu bar icon
 shows the new mode. No Accessibility permission is needed. If another app
 already uses ⌃⌥N, AirBuds leaves it alone, and the menu item's tooltip says so.
 
@@ -116,7 +116,7 @@ already uses ⌃⌥N, AirBuds leaves it alone, and the menu item's tooltip says 
 <img src="docs/screenshots/automations-light.png" width="380" alt="Automations window with rules for FaceTime and Music">
 
 Pick an app and what your earbuds should do while it's open: for example
-Transparency for FaceTime or Zoom, Low Latency for a game, or the Pop preset for
+Transparent for FaceTime or Zoom, Low Latency for a game, or the Pop preset for
 Music. When the app quits, AirBuds switches back to what you had before, unless
 you changed it yourself in the meantime. If several of these apps are open, the
 one opened last wins.
@@ -129,8 +129,8 @@ app (the **Open URLs** action), a script, or Terminal:
 | Link | Does |
 | --- | --- |
 | `airbuds://noise/anc` | Noise Cancellation |
-| `airbuds://noise/transparency` | Transparency |
-| `airbuds://noise/off` | Noise control off |
+| `airbuds://noise/transparent` | Transparent (`transparency` works too) |
+| `airbuds://noise/standard` | Standard, noise control off (`off` works too) |
 | `airbuds://noise/next` | Next noise mode, like ⌃⌥N |
 | `airbuds://eq/rock` | EQ preset, by name or number (`normal`, `pop`, `3`, …) |
 | `airbuds://low-latency/on` | Low Latency `on`, `off` or `toggle` |

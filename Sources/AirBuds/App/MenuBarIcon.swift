@@ -1,5 +1,5 @@
 // Menu bar icon: the SF "earbuds" symbol as a template image, so macOS tints it
-// for light and dark menu bars. With Noise Cancellation or Transparency on, the
+// for light and dark menu bars. With Noise Cancellation or Transparent on, the
 // mode's symbol (the same one the panel uses) sits to its right.
 
 import AppKit

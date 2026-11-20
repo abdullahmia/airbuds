@@ -25,12 +25,13 @@ public struct Battery: Equatable, Codable {
 // MARK: - Settings
 
 public enum NoiseMode: String, CaseIterable, Codable {
-    case anc, transparency, off
+    /// In the order the panel and pickers list them.
+    case anc, off, transparency
 
-    /// The mode after `current` when cycling NC → Transparency → Off (Transparency
+    /// The mode after `current` when cycling NC → Standard → Transparent (Transparent
     /// only if the earbuds have it). Starts at Noise Cancellation when unknown.
     public static func next(after current: NoiseMode?, transparency: Bool) -> NoiseMode {
-        let order: [NoiseMode] = transparency ? [.anc, .transparency, .off] : [.anc, .off]
+        let order: [NoiseMode] = transparency ? [.anc, .off, .transparency] : [.anc, .off]
         guard let current, let index = order.firstIndex(of: current) else { return order[0] }
         return order[(index + 1) % order.count]
     }
@@ -60,7 +61,7 @@ public struct EqPreset: Equatable, Identifiable {
 /// fill it in (each driver's protocol does; Jieli: Capabilities+Jieli.swift), so each
 /// model shows only its features.
 public struct Capabilities: Equatable {
-    /// Noise cancellation (and Off).
+    /// Noise cancellation (and Standard, with it off).
     public var noiseControl = false
     public var transparency = false
     public var lowLatency = false

@@ -1,4 +1,4 @@
-// Per-app automation: "while Zoom is open, use Transparency".
+// Per-app automation: "while Zoom is open, use Transparent".
 //
 // Each rule names an app and the settings to use while it runs; nil means
 // "don't change". When several rule apps are open, the one opened last wins

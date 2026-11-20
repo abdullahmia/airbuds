@@ -120,7 +120,7 @@ final class CommandRunner {
             guard ready else { return .notReady }
             guard caps.noiseControl else { return .unsupported("These earbuds have no noise control") }
             guard mode != .transparency || caps.transparency else {
-                return .unsupported("These earbuds have no Transparency mode")
+                return .unsupported("These earbuds have no Transparent mode")
             }
             controller.setNoiseMode(mode)
             return .done(HUDMessage(symbol: mode.symbol, title: mode.label, detail: "Noise Control"))

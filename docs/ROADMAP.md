@@ -14,8 +14,8 @@ new protocol work. See the README for how to use them.
 
 | # | Feature | Notes |
 | --- | --- | --- |
-| 1 | ✅ **Keyboard shortcut for noise control** | ⌃⌥N cycles Noise Cancellation → Transparency → Off from any app, with an indicator under the menu bar icon. Carbon hotkey, so no Accessibility permission. |
-| 2 | ✅ **Noise mode in the menu bar icon** | The mode's symbol (as in the panel) sits beside the earbuds icon for Noise Cancellation and Transparency. Can be turned off from the right-click menu. |
+| 1 | ✅ **Keyboard shortcut for noise control** | ⌃⌥N cycles Noise Cancellation → Standard → Transparent from any app, with an indicator under the menu bar icon. Carbon hotkey, so no Accessibility permission. |
+| 2 | ✅ **Noise mode in the menu bar icon** | The mode's symbol (as in the panel) sits beside the earbuds icon for Noise Cancellation and Transparent. Can be turned off from the right-click menu. |
 | 3 | ✅ **"Fully charged" notification** | Notifies when a bud or the case reaches 100% after charging, using the charging flag (`| 0x80`). `FullChargeTracker` in AirBudsKit, posted by `BatteryNotifier`. |
 | 4 | ✅ **Battery time estimate and history** | "About 3h 10m left" in the main panel, and a Battery page with a chart of the session and time left per bud. History stays on the Mac for 7 days. |
 | 5 | ✅ **Shortcuts and URL scheme** | `airbuds://noise/transparency`, `airbuds://eq/rock`, `airbuds://low-latency/toggle` and more; works with Shortcuts' Open URLs action. |

@@ -38,8 +38,8 @@ extension NoiseMode {
     var label: String {
         switch self {
         case .anc: return "Noise Cancellation"
-        case .transparency: return "Transparency"
-        case .off: return "Off"
+        case .transparency: return "Transparent"
+        case .off: return "Standard"
         }
     }
 

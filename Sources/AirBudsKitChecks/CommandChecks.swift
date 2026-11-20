@@ -3,13 +3,13 @@
 import Foundation
 import AirBudsKit
 
-/// Noise Cancellation → Transparency → Off.
+/// Noise Cancellation → Standard → Transparent.
 func noiseCyclingChecks() {
     section("Noise mode cycling")
-    check(NoiseMode.next(after: .anc, transparency: true) == .transparency, "nc -> transparency")
-    check(NoiseMode.next(after: .transparency, transparency: true) == .off, "transparency -> off")
-    check(NoiseMode.next(after: .off, transparency: true) == .anc, "off -> nc")
-    check(NoiseMode.next(after: .anc, transparency: false) == .off, "nc -> off without transparency")
+    check(NoiseMode.next(after: .anc, transparency: true) == .off, "nc -> standard")
+    check(NoiseMode.next(after: .off, transparency: true) == .transparency, "standard -> transparent")
+    check(NoiseMode.next(after: .transparency, transparency: true) == .anc, "transparent -> nc")
+    check(NoiseMode.next(after: .anc, transparency: false) == .off, "nc -> standard without transparent")
     check(NoiseMode.next(after: nil, transparency: true) == .anc, "unknown -> nc")
 }
 
@@ -20,6 +20,8 @@ func linkChecks() {
     check(command("airbuds://noise/anc") == .noise(.anc), "url: noise cancellation")
     check(command("AirBuds://Noise/Transparency") == .noise(.transparency), "url: case-insensitive")
     check(command("airbuds://noise/off") == .noise(.off), "url: off")
+    check(command("airbuds://noise/standard") == .noise(.off), "url: standard is noise control off")
+    check(command("airbuds://noise/transparent") == .noise(.transparency), "url: transparent")
     check(command("airbuds://noise/next") == .nextNoise, "url: cycle")
     check(command("airbuds://eq/Rock") == .eq("rock"), "url: eq")
     check(command("airbuds://low-latency/on") == .lowLatency(true), "url: low latency on")
