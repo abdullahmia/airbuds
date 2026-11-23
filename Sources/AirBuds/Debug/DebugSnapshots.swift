@@ -81,6 +81,8 @@ enum DebugSnapshots {
         let settings = AppSettings()
         let store = BatteryHistoryStore(controller: device, live: false)
         store.setSample(history)
+        let volume = EarbudsVolume(controller: device, live: false)
+        volume.setSample(level: 0.6)
         let pages: [(String, PanelPage)] = [
             ("main", .main), ("quick", .quickSettings), ("eq", .equalizer), ("battery", .battery),
             ("touch", .touchControls),
@@ -96,6 +98,7 @@ enum DebugSnapshots {
                 .environmentObject(settings)
                 .environmentObject(nav)
                 .environmentObject(store)
+                .environmentObject(volume)
                 .fixedSize()
         }
 

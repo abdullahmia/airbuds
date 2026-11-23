@@ -74,6 +74,7 @@ Sources/AirBudsKit/
     BatteryHistory.swift     Battery samples, sessions and the time-left estimate
     Automation.swift         Per-app rules and the engine that applies and restores them
     Commands.swift           airbuds:// link parsing
+    AudioOutput.swift        Which CoreAudio output is the earbuds (by address), and the volume symbol
   Protocols/Jieli/
     Rcsp.swift               RCSP framing and parser (with an overview of the protocol)
     JieliAuth.swift          Handshake (E1/SAFER+)
@@ -108,6 +109,7 @@ Sources/AirBuds/
     Battery/                 BatteryNotifier (low battery and fully charged notifications),
                              BatteryHistoryStore (samples per device, saved to Application Support)
     Automation/              AutomationController: watches apps and applies automation rules
+    Volume/                  EarbudsVolume: the earbuds' output volume and mute through CoreAudio
     Shortcuts/               CommandRunner (shortcut and airbuds:// links, waits for the buds),
                              HotKey (system-wide shortcut through Carbon's RegisterEventHotKey)
   Views/
@@ -123,7 +125,7 @@ Sources/AirBuds/
 Sources/AirBudsKitChecks/
   main.swift                 Runs every check and prints the totals
   Harness.swift              section, check and hex helpers
-  BatteryChecks.swift  CommandChecks.swift  AutomationChecks.swift
+  BatteryChecks.swift  CommandChecks.swift  AutomationChecks.swift  VolumeChecks.swift
   Protocols/JieliChecks.swift  Protocol checks on bytes captured from real earbuds
 ```
 

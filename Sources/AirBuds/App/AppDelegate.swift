@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let settings = AppSettings()
     private let navigation = PanelNavigation()
     private lazy var history = BatteryHistoryStore(controller: controller)
+    private lazy var volume = EarbudsVolume(controller: controller)
     private lazy var automationsWindow = AutomationsWindow(settings: settings)
     private var notifier: BatteryNotifier?
     private var commands: CommandRunner?
@@ -39,6 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             .environmentObject(settings)
             .environmentObject(navigation)
             .environmentObject(history)
+            .environmentObject(volume)
         let hosting = NSHostingController(rootView: panel)
         hosting.sizingOptions = .preferredContentSize // popover follows the panel's height
         popover.contentViewController = hosting

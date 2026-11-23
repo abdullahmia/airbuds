@@ -4,7 +4,7 @@ Ideas for what to add to AirBuds next, grouped by how much work each needs.
 Nothing here is promised; it's a list to pick from.
 
 AirBuds already has battery for each bud and the case, low battery alerts,
-noise control, the six EQ presets, Low Latency, device info and Open at Login,
+volume, noise control, the six EQ presets, Low Latency, device info and Open at Login,
 plus the quick wins below.
 
 ## Quick wins: done

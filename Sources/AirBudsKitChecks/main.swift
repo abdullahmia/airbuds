@@ -13,6 +13,7 @@ batteryHistoryChecks()
 noiseCyclingChecks()
 linkChecks()
 automationChecks()
+volumeChecks()
 jieliChecks()
 
 print("\(passes) passed, \(failures) failed")

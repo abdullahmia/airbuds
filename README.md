@@ -32,6 +32,7 @@ telemetry.
 - **Battery** for the left bud, right bud and case, with optional battery text in the menu bar
 - **Time left** estimate and a **battery chart** of your current listening session
 - **Low battery alerts** at 20% and again at 10%, without repeats, and **fully charged** alerts
+- **Volume**: a slider and mute button for the earbuds, whether or not they're the Mac's current output
 - **Noise control**: Noise Cancellation, Transparent or Standard, with the current mode shown in the menu bar
 - **Keyboard shortcut**: ⌃⌥N switches the noise mode from any app
 - **EQ presets**: Normal, Rock, Pop, Classical, Jazz and Country, plus a **10-band Custom EQ**
@@ -85,7 +86,7 @@ off from the right-click menu.
 
 | | |
 | --- | --- |
-| <img src="docs/screenshots/main-light.png" width="300" alt="Main panel"> | **Main panel**<br>Battery for each bud and the case (shown when the earbuds report it), and how long until the first bud runs out. Click a noise mode to switch.<br><br>Buttons at the top right: **Equalizer**, **Quick Settings** and **Disconnect**. |
+| <img src="docs/screenshots/main-light.png" width="300" alt="Main panel"> | **Main panel**<br>Battery for each bud and the case (shown when the earbuds report it), and how long until the first bud runs out. Drag the **volume** slider, or click the speaker to mute. Click a noise mode to switch.<br><br>Buttons at the top right: **Equalizer**, **Quick Settings** and **Disconnect**. |
 | <img src="docs/screenshots/battery-light.png" width="300" alt="Battery page with a chart of this session"> | **Battery**<br>Click the battery row. The chart shows each bud's level since you started listening; hover it for the exact reading. Below it, time left for each bud. |
 | <img src="docs/screenshots/eq-custom-light.png" width="300" alt="Equalizer with Custom selected and ten band sliders"> | **Equalizer**<br>Click a preset to apply it, or **Custom** to shape the sound yourself: drag each of the 10 bands (31 Hz to 16 kHz) up or down by up to 8 dB. |
 | <img src="docs/screenshots/touch-light.png" width="300" alt="Touch Controls"> | **Touch Controls**<br>From Quick Settings. Pick what single, double and triple tap do on each bud: play/pause, next or previous track, volume, calls, or switching the noise mode. Saved on the earbuds. |
@@ -234,7 +235,7 @@ copies aren't told about them. To try the feed locally, `scripts/make-appcast.sh
 ## Project layout
 
 ```
-Sources/AirBudsKit/        No UI or Bluetooth: Models/, Logic/ (battery, automation, links),
+Sources/AirBudsKit/        No UI or Bluetooth: Models/, Logic/ (battery, automation, links, audio output),
                            Protocols/<brand>/ (earbud protocol codecs)
 Sources/AirBuds/           Menu bar app: App/, Bluetooth/, Drivers/<brand>/, Device/,
                            Features/, Views/, Support/

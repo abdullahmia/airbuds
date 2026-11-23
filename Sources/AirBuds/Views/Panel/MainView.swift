@@ -1,5 +1,5 @@
-// Main page: header, battery and noise control; paired earbuds to connect when
-// none are connected.
+// Main page: header, battery, volume and noise control; paired earbuds to
+// connect when none are connected.
 
 import AirBudsKit
 import SwiftUI
@@ -7,6 +7,7 @@ import SwiftUI
 struct MainView: View {
     @EnvironmentObject var device: EarbudsController
     @EnvironmentObject var nav: PanelNavigation
+    @EnvironmentObject var volume: EarbudsVolume
 
     private var state: DeviceState { device.state }
 
@@ -18,6 +19,10 @@ struct MainView: View {
                     .buttonStyle(HoverRowStyle())
                     .help("Battery Details")
                 TimeLeft()
+                if volume.level != nil {
+                    PanelDivider()
+                    VolumeSection()
+                }
                 if state.capabilities.noiseControl {
                     PanelDivider()
                     NoiseControlSection()
@@ -228,6 +233,35 @@ private struct BatteryGlyph: View {
             }
             .frame(width: 22, height: 10)
             RoundedRectangle(cornerRadius: 1).fill(Color.primary.opacity(0.35)).frame(width: 1.5, height: 4)
+        }
+    }
+}
+
+// MARK: - Volume
+
+private struct VolumeSection: View {
+    @EnvironmentObject var volume: EarbudsVolume
+
+    var body: some View {
+        let level: Double = volume.level ?? 0
+        VStack(spacing: 0) {
+            SectionTitle("Volume")
+            HStack(spacing: 10) {
+                Button { volume.setMuted(!volume.muted) } label: {
+                    IconBadge(symbol: AudioOutput.symbol(level: level, muted: volume.muted))
+                }
+                .buttonStyle(.plain)
+                .help(volume.muted ? "Unmute" : "Mute")
+                Slider(value: Binding(get: { level }, set: { volume.setLevel($0) }), in: 0...1)
+                    .controlSize(.small)
+                    .opacity(volume.muted ? 0.5 : 1)
+                Text("\(Int((level * 100).rounded()))%")
+                    .font(.system(size: 11).monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(width: 32, alignment: .trailing)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 3)
         }
     }
 }
